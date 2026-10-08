@@ -4,7 +4,7 @@ A multi-tenant matrimonial platform for marriage bureaus that fights fake,
 inactive and scammer profiles using 3-level trust verification.
 
 ## Tech stack
-React | Spring Boot | MySQL | JWT
+React | Spring Boot | Data JPA | MySQL | JWT
 
 ## Roles
 Super Admin, Host (marriage bureau), End User
