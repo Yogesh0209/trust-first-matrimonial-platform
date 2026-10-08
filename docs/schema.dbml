@@ -1,0 +1,261 @@
+// Trust-First Matrimonial SaaS Platform - database schema (MySQL)
+
+Enum role_type {
+  SUPER_ADMIN
+  HOST
+  END_USER
+}
+Enum bureau_status {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+Enum plan_status {
+  ACTIVE
+  INACTIVE
+}
+Enum subscription_status {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+Enum payment_status {
+  CREATED
+  PAID
+  FAILED
+}
+Enum gender_type {
+  MALE
+  FEMALE
+  OTHER
+}
+Enum marital_status_type {
+  NEVER_MARRIED
+  DIVORCED
+  WIDOWED
+}
+Enum visibility_type {
+  VISIBLE
+  HIDDEN
+}
+Enum verification_type {
+  SELFIE
+  GOV_ID
+}
+Enum review_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+Enum interest_status {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+Enum report_reason {
+  FAKE_PHOTOS
+  ASKED_FOR_MONEY
+  INACTIVE_PROFILE
+  WRONG_DETAILS
+  OTHER
+}
+Enum report_status {
+  OPEN
+  WARNED
+  REMOVED
+  DISMISSED
+}
+Enum otp_purpose {
+  EMAIL_VERIFY
+  PHONE_VERIFY
+  PASSWORD_RESET
+}
+
+// ---------- Tenants, plans, billing ----------
+Table plans {
+  id bigint [pk, increment]
+  name varchar(50) [not null, unique]
+  price_per_month decimal(10,2) [not null, default: 0]
+  member_limit int [note: 'NULL means unlimited']
+  gov_id_verification boolean [not null, default: false]
+  status plan_status [not null, default: 'ACTIVE']
+}
+
+Table bureaus {
+  id bigint [pk, increment]
+  name varchar(120) [not null]
+  city varchar(80) [not null]
+  status bureau_status [not null, default: 'PENDING']
+  share_members boolean [not null, default: false]
+  search_other_bureaus boolean [not null, default: false]
+  show_bureau_name boolean [not null, default: false]
+  created_at datetime [not null, default: `now()`]
+}
+
+Table subscriptions {
+  id bigint [pk, increment]
+  bureau_id bigint [not null]
+  plan_id bigint [not null]
+  start_date date [not null]
+  end_date date [not null]
+  status subscription_status [not null, default: 'ACTIVE']
+}
+
+Table payments {
+  id bigint [pk, increment]
+  subscription_id bigint [not null]
+  amount decimal(10,2) [not null]
+  gateway_order_id varchar(100) [not null]
+  gateway_payment_id varchar(100)
+  status payment_status [not null, default: 'CREATED']
+  created_at datetime [not null, default: `now()`]
+  paid_at datetime
+}
+
+// ---------- Users and profiles ----------
+Table users {
+  id bigint [pk, increment]
+  bureau_id bigint [note: 'NULL for Super Admin']
+  role role_type [not null]
+  full_name varchar(100) [not null]
+  email varchar(150) [not null, unique]
+  phone varchar(15) [not null, unique]
+  password_hash varchar(255) [not null]
+  email_verified boolean [not null, default: false]
+  phone_verified boolean [not null, default: false]
+  is_blocked boolean [not null, default: false]
+  last_active_at datetime
+  created_at datetime [not null, default: `now()`]
+}
+
+Table profiles {
+  id bigint [pk, increment]
+  user_id bigint [not null, unique]
+  gender gender_type [not null]
+  date_of_birth date [not null]
+  marital_status marital_status_type [not null]
+  religion varchar(50)
+  mother_tongue varchar(50)
+  city varchar(80)
+  height_cm smallint
+  education varchar(100)
+  occupation varchar(100)
+  family_type varchar(30)
+  about text
+  trust_level tinyint [not null, default: 1, note: '1 to 3. Kept on purpose for fast search']
+  visibility visibility_type [not null, default: 'VISIBLE']
+  updated_at datetime [not null, default: `now()`]
+
+  indexes {
+    (visibility, trust_level)
+    city
+  }
+}
+
+Table profile_photos {
+  id bigint [pk, increment]
+  profile_id bigint [not null]
+  photo_url varchar(500) [not null]
+  is_primary boolean [not null, default: false]
+  uploaded_at datetime [not null, default: `now()`]
+}
+
+Table verifications {
+  id bigint [pk, increment]
+  profile_id bigint [not null]
+  type verification_type [not null, note: 'SELFIE = Level 2, GOV_ID = Level 3']
+  file_url varchar(500) [not null]
+  file_url_back varchar(500)
+  status review_status [not null, default: 'PENDING']
+  reviewed_by bigint
+  reject_reason varchar(255)
+  submitted_at datetime [not null, default: `now()`]
+  reviewed_at datetime
+}
+
+// ---------- Interactions ----------
+Table interests {
+  id bigint [pk, increment]
+  sender_profile_id bigint [not null]
+  receiver_profile_id bigint [not null]
+  status interest_status [not null, default: 'PENDING']
+  created_at datetime [not null, default: `now()`]
+  responded_at datetime
+
+  indexes {
+    (sender_profile_id, receiver_profile_id) [unique]
+  }
+}
+
+Table shortlists {
+  profile_id bigint [not null]
+  shortlisted_profile_id bigint [not null]
+  created_at datetime [not null, default: `now()`]
+
+  indexes {
+    (profile_id, shortlisted_profile_id) [pk]
+  }
+}
+
+Table messages {
+  id bigint [pk, increment]
+  interest_id bigint [not null, note: 'chat opens only after interest is ACCEPTED']
+  sender_profile_id bigint [not null]
+  body text [not null]
+  is_flagged boolean [not null, default: false]
+  sent_at datetime [not null, default: `now()`]
+}
+
+// ---------- Moderation and security ----------
+Table reports {
+  id bigint [pk, increment]
+  reporter_profile_id bigint [not null]
+  reported_profile_id bigint [not null]
+  reason report_reason [not null]
+  details varchar(500)
+  status report_status [not null, default: 'OPEN']
+  handled_by bigint
+  created_at datetime [not null, default: `now()`]
+  resolved_at datetime
+}
+
+Table audit_logs {
+  id bigint [pk, increment]
+  actor_user_id bigint
+  action varchar(60) [not null]
+  entity_type varchar(40) [not null]
+  entity_id bigint
+  details varchar(500)
+  created_at datetime [not null, default: `now()`]
+}
+
+Table otp_tokens {
+  id bigint [pk, increment]
+  user_id bigint [not null]
+  purpose otp_purpose [not null]
+  code_hash varchar(100) [not null]
+  expires_at datetime [not null]
+  used boolean [not null, default: false]
+  created_at datetime [not null, default: `now()`]
+}
+
+// ---------- Relationships ----------
+Ref: users.bureau_id > bureaus.id
+Ref: subscriptions.bureau_id > bureaus.id
+Ref: subscriptions.plan_id > plans.id
+Ref: payments.subscription_id > subscriptions.id
+Ref: profiles.user_id - users.id
+Ref: profile_photos.profile_id > profiles.id
+Ref: verifications.profile_id > profiles.id
+Ref: verifications.reviewed_by > users.id
+Ref: interests.sender_profile_id > profiles.id
+Ref: interests.receiver_profile_id > profiles.id
+Ref: shortlists.profile_id > profiles.id
+Ref: shortlists.shortlisted_profile_id > profiles.id
+Ref: messages.interest_id > interests.id
+Ref: messages.sender_profile_id > profiles.id
+Ref: reports.reporter_profile_id > profiles.id
+Ref: reports.reported_profile_id > profiles.id
+Ref: reports.handled_by > users.id
+Ref: audit_logs.actor_user_id > users.id
+Ref: otp_tokens.user_id > users.id
