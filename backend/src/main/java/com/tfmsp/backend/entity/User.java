@@ -1,6 +1,8 @@
-package com.tfmsp.backend.user;
+package com.tfmsp.backend.entity;
 
 import java.time.LocalDateTime;
+
+import com.tfmsp.backend.enums.Role;
 
 import jakarta.persistence.*;
 
