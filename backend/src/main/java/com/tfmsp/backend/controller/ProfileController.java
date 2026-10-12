@@ -21,9 +21,18 @@ import jakarta.validation.Valid;
 public class ProfileController {
 
     private final ProfileService profileService;
+    private final com.tfmsp.backend.service.FreshnessService freshnessService;
 
-    public ProfileController(ProfileService profileService) {
+    public ProfileController(ProfileService profileService, com.tfmsp.backend.service.FreshnessService freshnessService) {
         this.profileService = profileService;
+        this.freshnessService = freshnessService;
+    }
+
+    @PostMapping("/me/confirm-active")
+    public ResponseEntity<Map<String, String>> confirmActive(Principal principal) {
+        Long userId = Long.valueOf(principal.getName());
+        freshnessService.confirmActive(userId);
+        return ResponseEntity.ok(Map.of("message", "Active status confirmed and profile freshness renewed"));
     }
 
     @GetMapping("/me")

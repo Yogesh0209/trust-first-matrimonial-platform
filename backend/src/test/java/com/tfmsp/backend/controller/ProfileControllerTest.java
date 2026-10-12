@@ -41,11 +41,14 @@ class ProfileControllerTest {
     @Mock
     private ProfileService profileService;
 
+    @Mock
+    private com.tfmsp.backend.service.FreshnessService freshnessService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
-        ProfileController controller = new ProfileController(profileService);
+        ProfileController controller = new ProfileController(profileService, freshnessService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -172,5 +175,15 @@ class ProfileControllerTest {
                 .andExpect(jsonPath("$.message").value("Privacy settings updated successfully"));
 
         verify(profileService).updatePrivacy(eq(1L), any(PrivacyUpdateRequest.class));
+    }
+
+    @Test
+    void confirmActive_Success() throws Exception {
+        mockMvc.perform(post("/api/profiles/me/confirm-active")
+                .principal(() -> "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Active status confirmed and profile freshness renewed"));
+
+        verify(freshnessService).confirmActive(1L);
     }
 }
