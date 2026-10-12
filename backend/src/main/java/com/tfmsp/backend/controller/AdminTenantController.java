@@ -1,0 +1,67 @@
+package com.tfmsp.backend.controller;
+
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.tfmsp.backend.dto.BureauResponse;
+import com.tfmsp.backend.dto.BureauStatusUpdateRequest;
+import com.tfmsp.backend.entity.Plan;
+import com.tfmsp.backend.entity.User;
+import com.tfmsp.backend.enums.Role;
+import com.tfmsp.backend.repository.UserRepository;
+import com.tfmsp.backend.service.TenantService;
+
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/api/admin")
+public class AdminTenantController {
+
+    private final TenantService tenantService;
+    private final UserRepository userRepository;
+
+    public AdminTenantController(TenantService tenantService, UserRepository userRepository) {
+        this.tenantService = tenantService;
+        this.userRepository = userRepository;
+    }
+
+    private User verifySuperAdmin(Authentication auth) {
+        if (auth == null || auth.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+        User user = userRepository.findByEmail(auth.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        if (user.getRole() != Role.SUPER_ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: Super Admin role required");
+        }
+        return user;
+    }
+
+    @GetMapping("/tenants")
+    public ResponseEntity<List<BureauResponse>> getBureaus(
+            @RequestParam(required = false) String status,
+            Authentication auth) {
+        verifySuperAdmin(auth);
+        return ResponseEntity.ok(tenantService.getAllBureaus(status));
+    }
+
+    @PutMapping("/tenants/{id}/status")
+    public ResponseEntity<BureauResponse> updateBureauStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody BureauStatusUpdateRequest req,
+            Authentication auth) {
+        User admin = verifySuperAdmin(auth);
+        return ResponseEntity.ok(tenantService.updateBureauStatus(id, req.getStatus(), admin.getId()));
+    }
+
+    @GetMapping("/plans")
+    public ResponseEntity<List<Plan>> getAllPlans(Authentication auth) {
+        verifySuperAdmin(auth);
+        return ResponseEntity.ok(tenantService.getAllPlans());
+    }
+}

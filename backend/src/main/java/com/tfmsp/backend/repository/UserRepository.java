@@ -17,4 +17,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByPhone(String phone);
 
     long countByBureauId(Long bureauId);
+
+    java.util.List<User> findByBureauIdAndRole(Long bureauId, com.tfmsp.backend.enums.Role role);
 }
