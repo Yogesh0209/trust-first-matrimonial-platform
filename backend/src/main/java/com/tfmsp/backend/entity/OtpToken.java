@@ -30,6 +30,9 @@ public class OtpToken {
     @Column(nullable = false)
     private boolean used = false;
 
+    @Column(name = "failed_attempts", nullable = false)
+    private int failedAttempts = 0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -91,5 +94,13 @@ public class OtpToken {
 
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresAt);
+    }
+
+    public int getFailedAttempts() {
+        return failedAttempts;
+    }
+
+    public void setFailedAttempts(int failedAttempts) {
+        this.failedAttempts = failedAttempts;
     }
 }

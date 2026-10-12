@@ -71,4 +71,13 @@ public class AuthController {
         otpService.resetPassword(request.getIdentifier(), request.getOtp(), request.getNewPassword());
         return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
     }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @Valid @RequestBody com.tfmsp.backend.dto.ChangePasswordRequest request,
+            java.security.Principal principal) {
+        Long userId = Long.valueOf(principal.getName());
+        authService.changePassword(userId, request);
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+    }
 }

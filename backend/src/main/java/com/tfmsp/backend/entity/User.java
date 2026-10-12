@@ -42,6 +42,10 @@ public class User {
 	@Column(name = "is_blocked", nullable = false)
 	private boolean blocked;
 
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private com.tfmsp.backend.enums.UserStatus status = com.tfmsp.backend.enums.UserStatus.PENDING;
+
 	@Column(name = "last_active_at")
 	private LocalDateTime lastActiveAt;
 
@@ -132,11 +136,19 @@ public class User {
 	}
 
 	public boolean isBlocked() {
-		return blocked;
+		return blocked || status == com.tfmsp.backend.enums.UserStatus.SUSPENDED || status == com.tfmsp.backend.enums.UserStatus.DELETED;
 	}
 
 	public void setBlocked(boolean blocked) {
 		this.blocked = blocked;
+	}
+
+	public com.tfmsp.backend.enums.UserStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(com.tfmsp.backend.enums.UserStatus status) {
+		this.status = status;
 	}
 
 	public LocalDateTime getLastActiveAt() {

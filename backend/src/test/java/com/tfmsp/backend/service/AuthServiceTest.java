@@ -115,6 +115,7 @@ class AuthServiceTest {
         activeBureau.setStatus("ACTIVE");
 
         when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.of(activeBureau));
+        when(userRepository.countByBureauId(10L)).thenReturn(0L);
         when(userRepository.existsByEmail("aarav@example.com")).thenReturn(false);
         when(userRepository.existsByPhone("9876543210")).thenReturn(false);
         when(passwordEncoder.encode("Password@123")).thenReturn("encodedPassword");
@@ -131,6 +132,21 @@ class AuthServiceTest {
         assertEquals(1L, res.getId());
         assertEquals("aarav@example.com", res.getEmail());
         assertEquals(Role.END_USER, res.getRole());
+    }
+
+    @Test
+    void register_bureauCapacityReached_throwsConflict() {
+        RegisterRequest req = createValidRequest();
+        Bureau activeBureau = new Bureau();
+        activeBureau.setId(10L);
+        activeBureau.setStatus("ACTIVE");
+
+        when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.of(activeBureau));
+        when(userRepository.countByBureauId(10L)).thenReturn(500L);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.register(req));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("capacity reached"));
     }
 
     @Test
@@ -153,5 +169,44 @@ class AuthServiceTest {
         assertTrue(user.isAccountLocked());
         assertEquals(5, user.getFailedLoginAttempts());
         assertNotNull(user.getLockedUntil());
+    }
+
+    @Test
+    void changePassword_success() {
+        com.tfmsp.backend.dto.ChangePasswordRequest req = new com.tfmsp.backend.dto.ChangePasswordRequest();
+        req.setCurrentPassword("OldSecret@123");
+        req.setNewPassword("NewSecret@123");
+
+        User user = new User();
+        user.setId(1L);
+        user.setPasswordHash("oldHashed");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("OldSecret@123", "oldHashed")).thenReturn(true);
+        when(passwordEncoder.encode("NewSecret@123")).thenReturn("newHashed");
+
+        authService.changePassword(1L, req);
+
+        assertEquals("newHashed", user.getPasswordHash());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void changePassword_wrongPassword_throwsBadRequest() {
+        com.tfmsp.backend.dto.ChangePasswordRequest req = new com.tfmsp.backend.dto.ChangePasswordRequest();
+        req.setCurrentPassword("WrongSecret@123");
+        req.setNewPassword("NewSecret@123");
+
+        User user = new User();
+        user.setId(1L);
+        user.setPasswordHash("oldHashed");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("WrongSecret@123", "oldHashed")).thenReturn(false);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> authService.changePassword(1L, req));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("Current password does not match", ex.getReason());
     }
 }

@@ -197,9 +197,36 @@ class OtpServiceTest {
                 () -> otpService.verifyPhone("9876543210", "wrong_code"));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        assertEquals("Invalid OTP code", ex.getReason());
+        assertTrue(ex.getReason().contains("Invalid OTP code"));
+        assertEquals(1, token.getFailedAttempts());
         assertFalse(user.isPhoneVerified());
         assertFalse(token.isUsed());
+    }
+
+    @Test
+    void verifyOtp_fiveFailedAttempts_invalidatesToken() {
+        User user = createSampleUser();
+        when(userRepository.findByPhone("9876543210")).thenReturn(Optional.of(user));
+
+        OtpToken token = new OtpToken();
+        token.setUserId(1L);
+        token.setPurpose(OtpPurpose.PHONE_VERIFY);
+        token.setCodeHash("hashed_otp");
+        token.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+        token.setUsed(false);
+        token.setFailedAttempts(4); // 4 previous failures
+
+        when(otpTokenRepository.findTopByUserIdAndPurposeAndUsedFalseOrderByCreatedAtDesc(1L, OtpPurpose.PHONE_VERIFY))
+                .thenReturn(Optional.of(token));
+        when(passwordEncoder.matches("wrong_code", "hashed_otp")).thenReturn(false);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> otpService.verifyPhone("9876543210", "wrong_code"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Too many wrong attempts"));
+        assertEquals(5, token.getFailedAttempts());
+        assertTrue(token.isUsed()); // Token is invalidated
     }
 
     @Test

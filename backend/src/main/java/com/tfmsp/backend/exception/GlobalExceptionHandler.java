@@ -24,6 +24,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    private String resolveRequestId(WebRequest request) {
+        if (request != null) {
+            String header = request.getHeader("X-Request-Id");
+            if (header != null && !header.isBlank()) {
+                return header;
+            }
+        }
+        return java.util.UUID.randomUUID().toString();
+    }
+
     // 1. Catches @Valid errors (e.g. blank email, bad phone, short password)
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
@@ -39,7 +49,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(),
                 "VALIDATION_ERROR",
                 "Validation failed",
-                errors);
+                errors,
+                resolveRequestId(request));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
@@ -52,7 +63,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ApiError body = new ApiError(
                 HttpStatus.BAD_REQUEST.value(),
                 "MALFORMED_JSON",
-                "Malformed request body or invalid value");
+                "Malformed request body or invalid value",
+                null,
+                resolveRequestId(request));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 

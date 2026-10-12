@@ -15,19 +15,25 @@ public class ApiError {
     private String code;
     private String message;
     private List<FieldErrorItem> errors;
+    private String requestId;
 
     public ApiError() {
     }
 
     public ApiError(int status, String code, String message) {
-        this(status, code, message, Collections.emptyList());
+        this(status, code, message, Collections.emptyList(), java.util.UUID.randomUUID().toString());
     }
 
     public ApiError(int status, String code, String message, List<FieldErrorItem> errors) {
+        this(status, code, message, errors, java.util.UUID.randomUUID().toString());
+    }
+
+    public ApiError(int status, String code, String message, List<FieldErrorItem> errors, String requestId) {
         this.status = status;
         this.code = code;
         this.message = message;
         this.errors = errors != null ? errors : Collections.emptyList();
+        this.requestId = requestId != null ? requestId : java.util.UUID.randomUUID().toString();
     }
 
     public int getStatus() {
@@ -60,5 +66,13 @@ public class ApiError {
 
     public void setErrors(List<FieldErrorItem> errors) {
         this.errors = errors;
+    }
+
+    public String getRequestId() {
+        return requestId;
+    }
+
+    public void setRequestId(String requestId) {
+        this.requestId = requestId;
     }
 }

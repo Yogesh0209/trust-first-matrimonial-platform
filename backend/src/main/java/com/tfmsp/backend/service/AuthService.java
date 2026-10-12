@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.tfmsp.backend.dto.AuthResponse;
+import com.tfmsp.backend.dto.ChangePasswordRequest;
 import com.tfmsp.backend.dto.LoginRequest;
 import com.tfmsp.backend.dto.RegisterRequest;
 import com.tfmsp.backend.dto.UserResponse;
@@ -17,6 +18,7 @@ import com.tfmsp.backend.entity.Bureau;
 import com.tfmsp.backend.entity.User;
 import com.tfmsp.backend.enums.Gender;
 import com.tfmsp.backend.enums.Role;
+import com.tfmsp.backend.enums.UserStatus;
 import com.tfmsp.backend.repository.BureauRepository;
 import com.tfmsp.backend.repository.UserRepository;
 import com.tfmsp.backend.security.JwtService;
@@ -51,7 +53,13 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bureau is currently not active for registration");
         }
 
-        // 3. Unique Email and Phone Validation
+        // 3. Tenant Capacity Check (FRD TEN-09, UC-01)
+        long currentMembers = userRepository.countByBureauId(bureau.getId());
+        if (currentMembers >= 500) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bureau member capacity reached");
+        }
+
+        // 4. Unique Email and Phone Validation
         String email = request.getEmail().trim().toLowerCase();
         if (userRepository.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered");
@@ -60,13 +68,14 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone number is already registered");
         }
 
-        // 4. Create User under Bureau as END_USER
+        // 5. Create User under Bureau with initial PENDING status (FRD UC-01, Section 1.4)
         User user = new User();
         user.setFullName(request.getFullName().trim());
         user.setEmail(email);
         user.setPhone(request.getPhone().trim());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(Role.END_USER);
+        user.setStatus(UserStatus.PENDING);
         user.setBureauId(bureau.getId());
         user.setEmailVerified(false);
         user.setPhoneVerified(false);
@@ -81,8 +90,7 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
 
-        // 1. Check if account is locked (FRD AUTH-03: 15 min lock after 5 failed
-        // attempts)
+        // 1. Check if account is locked (FRD AUTH-03: 15 min lock after 5 failed attempts)
         if (user.isAccountLocked()) {
             throw new ResponseStatusException(HttpStatus.LOCKED,
                     "Account is locked due to 5 failed attempts. Please try again later.");
@@ -102,13 +110,23 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 
-        // 3. Check if user is blocked or suspended
-        if (user.isBlocked()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Your account is blocked");
+        // 3. Check if user is blocked or suspended (FRD Section 1.3, 1.5)
+        if (user.isBlocked() || user.getStatus() == UserStatus.SUSPENDED) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Your account has been suspended");
+        }
+        if (user.getStatus() == UserStatus.DELETED) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Your account has been deleted");
         }
 
-        // 4. Successful login: Reset failed attempts & update last active time (FRD
-        // FRE-01)
+        // Check if home bureau is suspended (FRD Section 1.3)
+        if (user.getBureauId() != null) {
+            Bureau bureau = bureauRepository.findById(user.getBureauId()).orElse(null);
+            if (bureau != null && "SUSPENDED".equalsIgnoreCase(bureau.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Your bureau is currently suspended");
+            }
+        }
+
+        // 4. Successful login: Reset failed attempts & update last active time (FRD FRE-01)
         user.setFailedLoginAttempts(0);
         user.setLockedUntil(null);
         user.setLastActiveAt(LocalDateTime.now());
@@ -116,6 +134,19 @@ public class AuthService {
 
         String token = jwtService.generateToken(user);
         return new AuthResponse(token, user.getRole(), user.getBureauId(), jwtService.getExpirationSeconds());
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password does not match");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 
     private void validateLegalAge(Gender gender, LocalDate dateOfBirth) {

@@ -141,6 +141,21 @@ class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.requestId").exists());
+    }
+
+    @Test
+    void changePassword_Success() throws Exception {
+        com.tfmsp.backend.dto.ChangePasswordRequest request = new com.tfmsp.backend.dto.ChangePasswordRequest();
+        request.setCurrentPassword("OldPassword@123");
+        request.setNewPassword("NewPassword@123");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/auth/change-password")
+                .principal(() -> "1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Password changed successfully"));
     }
 }

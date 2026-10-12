@@ -156,8 +156,25 @@ public class OtpService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OTP has expired. Please request a new one.");
         }
 
+        if (token.getFailedAttempts() >= 5) {
+            token.setUsed(true);
+            otpTokenRepository.save(token);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Too many wrong attempts. This OTP is invalid. Please request a new one.");
+        }
+
         if (!passwordEncoder.matches(rawOtp, token.getCodeHash())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid OTP code");
+            int newFailedAttempts = token.getFailedAttempts() + 1;
+            token.setFailedAttempts(newFailedAttempts);
+            if (newFailedAttempts >= 5) {
+                token.setUsed(true); // FRD AUTH-08: Invalidate OTP after 5 wrong attempts
+                otpTokenRepository.save(token);
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Too many wrong attempts. This OTP is now invalid. Please request a new one.");
+            }
+            otpTokenRepository.save(token);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid OTP code. " + (5 - newFailedAttempts) + " attempt(s) remaining.");
         }
 
         token.setUsed(true);
