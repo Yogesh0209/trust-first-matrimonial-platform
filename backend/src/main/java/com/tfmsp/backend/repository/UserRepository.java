@@ -1,0 +1,22 @@
+package com.tfmsp.backend.repository;
+
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.tfmsp.backend.entity.User;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+
+    Optional<User> findByEmail(String email);
+
+    Optional<User> findByPhone(String phone);
+
+    boolean existsByEmail(String email);
+
+    boolean existsByPhone(String phone);
+
+    long countByBureauId(Long bureauId);
+
+    java.util.List<User> findByBureauIdAndRole(Long bureauId, com.tfmsp.backend.enums.Role role);
+}
