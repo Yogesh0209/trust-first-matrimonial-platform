@@ -12,4 +12,6 @@ public interface BureauRepository extends JpaRepository<Bureau, Long> {
     Optional<Bureau> findByBureauCode(String bureauCode);
 
     boolean existsByBureauCode(String bureauCode);
+
+    java.util.List<Bureau> findByShareMembersTrueAndStatus(String status);
 }
