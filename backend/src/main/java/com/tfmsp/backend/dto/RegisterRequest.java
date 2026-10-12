@@ -1,29 +1,39 @@
 package com.tfmsp.backend.dto;
 
-import com.tfmsp.backend.enums.Role;
+import java.time.LocalDate;
+
+import com.tfmsp.backend.enums.Gender;
 
 import jakarta.validation.constraints.*;
 
 public class RegisterRequest {
-	
+
 	@NotBlank(message = "Name cannot be blank")
-	@Size(max = 100, message = "Name is too long")
+	@Size(min = 2, max = 60, message = "Name must be between 2 and 60 characters")
+	@Pattern(regexp = "^[a-zA-Z\\s.-]+$", message = "Name can only contain letters, spaces, dots, and hyphens")
 	private String fullName;
-	
-	@Email(message = "Email must be in valid format")
+
 	@NotBlank(message = "Email cannot be blank")
+	@Email(message = "Enter a valid email address")
 	private String email;
-	
-	@Pattern(regexp = "^[6-9]\\d{9}$", message = "Phone number must be 10 digits")
+
 	@NotBlank(message = "Phone number cannot be blank")
+	@Pattern(regexp = "^[6-9]\\d{9}$", message = "Enter a valid 10-digit Indian mobile number")
 	private String phone;
-	
-	@Size(min = 8, max = 50, message = "Password must be 8 to 50 characters")
+
 	@NotBlank(message = "Password cannot be blank")
+	@Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$", message = "Password must be at least 8 characters and include uppercase, lowercase, digit, and special character")
 	private String password;
-	
-	@NotNull(message = "Role cannot be null")
-	private Role role;
+
+	@NotNull(message = "Gender is required")
+	private Gender gender;
+
+	@NotNull(message = "Date of birth is required")
+	@Past(message = "Date of birth must be in the past")
+	private LocalDate dateOfBirth;
+
+	@NotBlank(message = "Bureau code is required")
+	private String bureauCode;
 
 	public String getFullName() {
 		return fullName;
@@ -57,18 +67,27 @@ public class RegisterRequest {
 		this.password = password;
 	}
 
-	public Role getRole() {
-		return role;
+	public Gender getGender() {
+		return gender;
 	}
 
-	public void setRole(Role role) {
-		this.role = role;
+	public void setGender(Gender gender) {
+		this.gender = gender;
 	}
 
-	@Override
-	public String toString() {
-		return "RegisterRequest [fullName=" + fullName + ", email=" + email + ", phone=" + phone + ", role=" + role
-				+ "]";
+	public LocalDate getDateOfBirth() {
+		return dateOfBirth;
 	}
-	
+
+	public void setDateOfBirth(LocalDate dateOfBirth) {
+		this.dateOfBirth = dateOfBirth;
+	}
+
+	public String getBureauCode() {
+		return bureauCode;
+	}
+
+	public void setBureauCode(String bureauCode) {
+		this.bureauCode = bureauCode;
+	}
 }

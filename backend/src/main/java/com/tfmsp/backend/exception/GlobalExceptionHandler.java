@@ -1,7 +1,7 @@
 package com.tfmsp.backend.exception;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +15,6 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -25,68 +24,77 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    // 1. @Valid failures (blank email, bad phone ...)
+    // 1. Catches @Valid errors (e.g. blank email, bad phone, short password)
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers,
             HttpStatusCode status, WebRequest request) {
-        Map<String, String> fieldErrors = new LinkedHashMap<>();
+
+        List<FieldErrorItem> errors = new ArrayList<>();
         for (FieldError fe : ex.getBindingResult().getFieldErrors()) {
-            fieldErrors.putIfAbsent(fe.getField(), fe.getDefaultMessage());
+            errors.add(new FieldErrorItem(fe.getField(), fe.getDefaultMessage()));
         }
-        return buildResponse(HttpStatus.BAD_REQUEST, "Validation failed", request, fieldErrors);
+
+        ApiError body = new ApiError(
+                HttpStatus.BAD_REQUEST.value(),
+                "VALIDATION_ERROR",
+                "Validation failed",
+                errors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    // 2. Broken JSON, or a value that doesn't fit (e.g. role = "ADMIN")
+    // 2. Catches malformed JSON
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
             HttpMessageNotReadableException ex, HttpHeaders headers,
             HttpStatusCode status, WebRequest request) {
-        return buildResponse(HttpStatus.BAD_REQUEST,
-                "Malformed request body or invalid value", request, Map.of());
+
+        ApiError body = new ApiError(
+                HttpStatus.BAD_REQUEST.value(),
+                "MALFORMED_JSON",
+                "Malformed request body or invalid value");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    // 3. Other standard Spring web errors (wrong HTTP method, unsupported type ...)
-    @Override
-    protected ResponseEntity<Object> handleExceptionInternal(
-            Exception ex, Object body, HttpHeaders headers,
-            HttpStatusCode statusCode, WebRequest request) {
-        String message = statusCode.is4xxClientError()
-                ? ex.getMessage()
-                : "Something went wrong. Please try again later.";
-        return buildResponse(statusCode, message, request, Map.of());
-    }
-
-    // 4. The ResponseStatusExceptions we throw ourselves in AuthService
+    // 3. Catches ResponseStatusException thrown by our business services
     @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<Object> handleResponseStatus(
-            ResponseStatusException ex, WebRequest request) {
-        return buildResponse(ex.getStatusCode(), ex.getReason(), request, Map.of());
+    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex) {
+        String code = ex.getStatusCode().toString();
+        if (ex.getStatusCode() == HttpStatus.CONFLICT) {
+            code = "CONFLICT";
+        } else if (ex.getStatusCode() == HttpStatus.FORBIDDEN) {
+            code = ex.getReason() != null && ex.getReason().contains("PLAN")
+                    ? "PLAN_RESTRICTED"
+                    : "FORBIDDEN";
+        } else if (ex.getStatusCode() == HttpStatus.UNAUTHORIZED) {
+            code = "UNAUTHORIZED";
+        } else if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
+            code = "NOT_FOUND";
+        }
+
+        ApiError body = new ApiError(ex.getStatusCode().value(), code, ex.getReason());
+        return ResponseEntity.status(ex.getStatusCode()).body(body);
     }
 
-    // 5. Database constraint violations (e.g. two duplicate requests at once)
+    // 4. Catches DB duplicate key conflicts
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<Object> handleDataIntegrity(
-            DataIntegrityViolationException ex, WebRequest request) {
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
-        return buildResponse(HttpStatus.CONFLICT,
-                "This data conflicts with an existing record", request, Map.of());
+        ApiError body = new ApiError(
+                HttpStatus.CONFLICT.value(),
+                "CONFLICT",
+                "This data conflicts with an existing record");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
-    // 6. Anything unexpected: log the details, show the user nothing sensitive
+    // 5. Catch-all for unexpected 500 errors
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Object> handleAny(Exception ex, WebRequest request) {
-        log.error("Unexpected error", ex);
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                "Something went wrong. Please try again later.", request, Map.of());
-    }
-
-    private ResponseEntity<Object> buildResponse(HttpStatusCode status, String message,
-            WebRequest request, Map<String, String> fieldErrors) {
-        HttpStatus resolved = HttpStatus.resolve(status.value());
-        String error = resolved != null ? resolved.getReasonPhrase() : "Error";
-        String path = ((ServletWebRequest) request).getRequest().getRequestURI();
-        ApiError body = new ApiError(status.value(), error, message, path, fieldErrors);
-        return ResponseEntity.status(status).body(body);
+    public ResponseEntity<ApiError> handleGenericException(Exception ex) {
+        log.error("Unexpected error occurred", ex);
+        ApiError body = new ApiError(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "INTERNAL_SERVER_ERROR",
+                "Something went wrong. Please try again later.");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 }

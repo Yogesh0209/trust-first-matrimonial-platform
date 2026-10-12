@@ -10,48 +10,54 @@ import jakarta.persistence.*;
 @Table(name = "users")
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @Column(name = "bureau_id")
-    private Long bureauId;
+	@Column(name = "bureau_id")
+	private Long bureauId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private Role role;
 
-    @Column(name = "full_name", nullable = false)
-    private String fullName;
+	@Column(name = "full_name", nullable = false)
+	private String fullName;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+	@Column(nullable = false, unique = true)
+	private String email;
 
-    @Column(nullable = false, unique = true)
-    private String phone;
+	@Column(nullable = false, unique = true)
+	private String phone;
 
-    @Column(name = "password_hash", nullable = false)
-    private String passwordHash;
+	@Column(name = "password_hash", nullable = false)
+	private String passwordHash;
 
-    @Column(name = "email_verified", nullable = false)
-    private boolean emailVerified;
+	@Column(name = "email_verified", nullable = false)
+	private boolean emailVerified;
 
-    @Column(name = "phone_verified", nullable = false)
-    private boolean phoneVerified;
+	@Column(name = "phone_verified", nullable = false)
+	private boolean phoneVerified;
 
-    @Column(name = "is_blocked", nullable = false)
-    private boolean blocked;
+	@Column(name = "is_blocked", nullable = false)
+	private boolean blocked;
 
-    @Column(name = "last_active_at")
-    private LocalDateTime lastActiveAt;
+	@Column(name = "last_active_at")
+	private LocalDateTime lastActiveAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+	@Column(name = "created_at", nullable = false, updatable = false)
+	private LocalDateTime createdAt;
 
-    @PrePersist
-    void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
+	@Column(name = "failed_login_attempts", nullable = false)
+	private int failedLoginAttempts = 0;
+
+	@Column(name = "locked_until")
+	private LocalDateTime lockedUntil;
+
+	@PrePersist
+	void onCreate() {
+		this.createdAt = LocalDateTime.now();
+	}
 
 	public Long getId() {
 		return id;
@@ -148,6 +154,25 @@ public class User {
 	public void setCreatedAt(LocalDateTime createdAt) {
 		this.createdAt = createdAt;
 	}
-    
-    
+
+	public int getFailedLoginAttempts() {
+		return failedLoginAttempts;
+	}
+
+	public void setFailedLoginAttempts(int failedLoginAttempts) {
+		this.failedLoginAttempts = failedLoginAttempts;
+	}
+
+	public LocalDateTime getLockedUntil() {
+		return lockedUntil;
+	}
+
+	public void setLockedUntil(LocalDateTime lockedUntil) {
+		this.lockedUntil = lockedUntil;
+	}
+
+	public boolean isAccountLocked() {
+		return lockedUntil != null && lockedUntil.isAfter(LocalDateTime.now());
+	}
+
 }
