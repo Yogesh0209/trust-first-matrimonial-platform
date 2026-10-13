@@ -85,7 +85,7 @@ public class DashboardService {
                 .findFirstByBureauIdAndStatusOrderByEndDateDesc(bureauId, SubscriptionStatus.ACTIVE)
                 .orElse(null);
 
-        String planName = "Free";
+        String planName = "Basic";
         Integer limit = 100;
         if (activeSub != null) {
             Plan plan = planRepository.findById(activeSub.getPlanId()).orElse(null);

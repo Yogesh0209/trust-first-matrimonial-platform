@@ -43,10 +43,13 @@ class AuthServiceTest {
     private JwtService jwtService;
 
     private AuthService authService;
+    
+    @Mock
+    private PlanLimitService planLimitService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, bureauRepository, passwordEncoder, jwtService);
+        authService = new AuthService(userRepository, bureauRepository, passwordEncoder, jwtService, planLimitService);
     }
 
     private RegisterRequest createValidRequest() {
@@ -100,7 +103,7 @@ class AuthServiceTest {
         inactiveBureau.setId(10L);
         inactiveBureau.setStatus("PENDING");
 
-        when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.of(inactiveBureau));
+        when(bureauRepository.findByBureauCodeForUpdate("BUR001")).thenReturn(Optional.of(inactiveBureau));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.register(req));
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
@@ -115,7 +118,8 @@ class AuthServiceTest {
         activeBureau.setStatus("ACTIVE");
 
         when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.of(activeBureau));
-        when(userRepository.countByBureauId(10L)).thenReturn(0L);
+        when(planLimitService.getMemberLimit(10L)).thenReturn(50);
+        when(userRepository.countByBureauIdAndRole(10L, Role.END_USER)).thenReturn(0L);
         when(userRepository.existsByEmail("aarav@example.com")).thenReturn(false);
         when(userRepository.existsByPhone("9876543210")).thenReturn(false);
         when(passwordEncoder.encode("Password@123")).thenReturn("encodedPassword");
@@ -142,11 +146,12 @@ class AuthServiceTest {
         activeBureau.setStatus("ACTIVE");
 
         when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.of(activeBureau));
-        when(userRepository.countByBureauId(10L)).thenReturn(500L);
+        when(planLimitService.getMemberLimit(10L)).thenReturn(50);
+        when(userRepository.countByBureauIdAndRole(10L, Role.END_USER)).thenReturn(50L);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.register(req));
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("capacity reached"));
+        assertTrue(ex.getReason().contains("limit reached"));
     }
 
     @Test

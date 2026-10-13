@@ -59,6 +59,7 @@ public class FreshnessService {
         ));
     }
 
+    @Scheduled(cron = "${app.freshness.cron:0 0 2 * * *}", zone = "Asia/Kolkata")
     @Transactional
     public int sweepInactiveProfiles() {
         LocalDateTime cutoff90Days = LocalDateTime.now().minusDays(90);
@@ -84,6 +85,7 @@ public class FreshnessService {
             }
         }
 
+        System.out.println("Freshness sweep finished. Profiles hidden: " + hiddenCount);
         return hiddenCount;
     }
 }

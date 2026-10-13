@@ -1,9 +1,11 @@
 package com.tfmsp.backend.service;
 
 import java.time.LocalDate;
+
 import java.time.LocalDateTime;
 import java.time.Period;
 
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,23 +32,27 @@ public class AuthService {
     private final BureauRepository bureauRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final PlanLimitService planLimitService;
 
     public AuthService(UserRepository userRepository,
             BureauRepository bureauRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            JwtService jwtService,
+            PlanLimitService planLimitService) {
         this.userRepository = userRepository;
         this.bureauRepository = bureauRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.planLimitService = planLimitService;
     }
 
+    @Transactional
     public UserResponse register(RegisterRequest request) {
-        // 1. Legal Marriageable Age Validation (FRD PRO-04)
+        // 1. Legal Marriageable Age Validation
         validateLegalAge(request.getGender(), request.getDateOfBirth());
 
-        // 2. Validate Bureau Code (FRD AUTH-01)
-        Bureau bureau = bureauRepository.findByBureauCode(request.getBureauCode().trim())
+        // 2. Validate Bureau Code
+        Bureau bureau = bureauRepository.findByBureauCodeForUpdate(request.getBureauCode().trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid bureau code"));
 
         if (!"ACTIVE".equalsIgnoreCase(bureau.getStatus())) {
@@ -54,9 +60,11 @@ public class AuthService {
         }
 
         // 3. Tenant Capacity Check (FRD TEN-09, UC-01)
-        long currentMembers = userRepository.countByBureauId(bureau.getId());
-        if (currentMembers >= 500) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bureau member capacity reached");
+        Integer limit = planLimitService.getMemberLimit(bureau.getId());
+        long currentMembers = userRepository.countByBureauIdAndRole(bureau.getId(), Role.END_USER);
+        if (limit != null && currentMembers >= limit) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Bureau member limit reached for its current plan");
         }
 
         // 4. Unique Email and Phone Validation

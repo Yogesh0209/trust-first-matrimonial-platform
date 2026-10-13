@@ -86,10 +86,10 @@ public class TenantService {
         userRepository.save(hostUser);
 
         // Assign default or chosen subscription plan
-        String planName = (req.getPlanName() != null && !req.getPlanName().isBlank()) ? req.getPlanName() : "Free";
+        String planName = (req.getPlanName() != null && !req.getPlanName().isBlank()) ? req.getPlanName() : "Basic";
         Plan plan = planRepository.findByNameIgnoreCase(planName)
                 .orElseGet(() -> planRepository.findAll().stream().findFirst()
-                        .orElseGet(() -> planRepository.save(new Plan("Free", java.math.BigDecimal.ZERO, 100, false))));
+                        .orElseGet(() -> planRepository.save(new Plan("Basic", java.math.BigDecimal.ZERO, 100, false))));
 
         Subscription subscription = new Subscription(
                 savedBureau.getId(),
