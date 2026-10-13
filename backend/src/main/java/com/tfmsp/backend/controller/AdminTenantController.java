@@ -56,7 +56,7 @@ public class AdminTenantController {
             @Valid @RequestBody BureauStatusUpdateRequest req,
             Authentication auth) {
         User admin = verifySuperAdmin(auth);
-        return ResponseEntity.ok(tenantService.updateBureauStatus(id, req.getStatus(), admin.getId()));
+        return ResponseEntity.ok(tenantService.updateBureauStatus(id, req.getStatus(), req.getReason(), admin.getId()));
     }
 
     @GetMapping("/plans")

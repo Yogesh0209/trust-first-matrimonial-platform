@@ -135,12 +135,31 @@ public class TenantService {
     }
 
     @Transactional
-    public BureauResponse updateBureauStatus(Long bureauId, BureauStatus newStatus, Long actorAdminId) {
+    public BureauResponse updateBureauStatus(Long bureauId, BureauStatus newStatus,
+            String reason, Long actorAdminId) {
+
+        if (newStatus == BureauStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A bureau cannot be moved back to PENDING");
+        }
+        if (newStatus == BureauStatus.SUSPENDED && (reason == null || reason.isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A reason is required to suspend a bureau");
+        }
+
         Bureau bureau = bureauRepository.findById(bureauId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bureau not found"));
 
         bureau.setStatus(newStatus.name());
         Bureau saved = bureauRepository.save(bureau);
+
+        // Approving a bureau also activates its Host account(s)
+        if (newStatus == BureauStatus.ACTIVE) {
+            for (User host : userRepository.findByBureauIdAndRole(bureauId, Role.HOST)) {
+                host.setStatus(UserStatus.ACTIVE);
+                userRepository.save(host);
+            }
+        }
 
         auditLogRepository.save(new AuditLog(
                 actorAdminId,
@@ -148,6 +167,7 @@ public class TenantService {
                 "BUREAU",
                 bureauId,
                 "Status updated to: " + newStatus.name()
+                        + (reason != null && !reason.isBlank() ? " | Reason: " + reason.trim() : "")
         ));
 
         long memberCount = userRepository.countByBureauId(bureau.getId());
@@ -158,6 +178,11 @@ public class TenantService {
                 .orElse("None");
 
         return toBureauResponse(saved, memberCount, planName);
+    }
+
+    // Kept so older callers and tests that pass no reason still work
+    public BureauResponse updateBureauStatus(Long bureauId, BureauStatus newStatus, Long actorAdminId) {
+        return updateBureauStatus(bureauId, newStatus, null, actorAdminId);
     }
 
     public List<MemberSummaryResponse> getHostMembers(Long bureauId) {
