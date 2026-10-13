@@ -30,7 +30,7 @@ public class AdminModerationController {
         if (auth == null || auth.getName() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
         }
-        User user = userRepository.findByEmail(auth.getName())
+        User user = userRepository.findById(Long.valueOf(auth.getName()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         if (user.getRole() != Role.SUPER_ADMIN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: Super Admin role required");

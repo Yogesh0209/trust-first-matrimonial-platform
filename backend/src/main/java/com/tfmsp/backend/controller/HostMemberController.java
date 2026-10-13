@@ -35,7 +35,7 @@ public class HostMemberController {
         if (auth == null || auth.getName() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
         }
-        User user = userRepository.findByEmail(auth.getName())
+        User user = userRepository.findById(Long.valueOf(auth.getName()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         if (user.getRole() != Role.HOST && user.getRole() != Role.SUPER_ADMIN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: Host role required");
@@ -58,7 +58,8 @@ public class HostMemberController {
             @Valid @RequestBody MemberStatusUpdateRequest req,
             Authentication auth) {
         User host = verifyHost(auth);
-        return ResponseEntity.ok(tenantService.updateMemberStatus(host.getBureauId(), id, req.getStatus(), host.getId()));
+        return ResponseEntity
+                .ok(tenantService.updateMemberStatus(host.getBureauId(), id, req.getStatus(), host.getId()));
     }
 
     @GetMapping("/subscription")

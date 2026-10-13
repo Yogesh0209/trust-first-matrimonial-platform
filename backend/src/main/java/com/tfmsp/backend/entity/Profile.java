@@ -3,6 +3,8 @@ package com.tfmsp.backend.entity;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.tfmsp.backend.enums.Gender;
 import com.tfmsp.backend.enums.MaritalStatus;
 import com.tfmsp.backend.enums.Visibility;
@@ -40,6 +42,7 @@ public class Profile {
     @Column(length = 80)
     private String city;
 
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     @Column(name = "height_cm")
     private Integer heightCm;
 
@@ -55,8 +58,9 @@ public class Profile {
     @Column(columnDefinition = "TEXT")
     private String about;
 
-    @Column(name = "trust_level", nullable = false)
-    private int trustLevel = 1; // 1 = Registered & verified contact, 2 = Selfie approved, 3 = Gov ID approved
+    @JdbcTypeCode(SqlTypes.TINYINT)
+    @Column(name = "trust_level")
+    private int trustLevel = 1;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
