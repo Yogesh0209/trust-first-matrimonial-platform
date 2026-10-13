@@ -42,14 +42,15 @@ class AuthServiceTest {
     @Mock
     private JwtService jwtService;
 
-    private AuthService authService;
-    
     @Mock
     private PlanLimitService planLimitService;
 
+    private AuthService authService;
+
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, bureauRepository, passwordEncoder, jwtService, planLimitService);
+        authService = new AuthService(userRepository, bureauRepository, passwordEncoder,
+                jwtService, planLimitService);
     }
 
     private RegisterRequest createValidRequest() {
@@ -89,7 +90,7 @@ class AuthServiceTest {
     @Test
     void register_invalidBureauCode_throwsBadRequest() {
         RegisterRequest req = createValidRequest();
-        when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.empty());
+        when(bureauRepository.findByBureauCodeForUpdate("BUR001")).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.register(req));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
@@ -117,7 +118,7 @@ class AuthServiceTest {
         activeBureau.setId(10L);
         activeBureau.setStatus("ACTIVE");
 
-        when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.of(activeBureau));
+        when(bureauRepository.findByBureauCodeForUpdate("BUR001")).thenReturn(Optional.of(activeBureau));
         when(planLimitService.getMemberLimit(10L)).thenReturn(50);
         when(userRepository.countByBureauIdAndRole(10L, Role.END_USER)).thenReturn(0L);
         when(userRepository.existsByEmail("aarav@example.com")).thenReturn(false);
@@ -145,7 +146,7 @@ class AuthServiceTest {
         activeBureau.setId(10L);
         activeBureau.setStatus("ACTIVE");
 
-        when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.of(activeBureau));
+        when(bureauRepository.findByBureauCodeForUpdate("BUR001")).thenReturn(Optional.of(activeBureau));
         when(planLimitService.getMemberLimit(10L)).thenReturn(50);
         when(userRepository.countByBureauIdAndRole(10L, Role.END_USER)).thenReturn(50L);
 
