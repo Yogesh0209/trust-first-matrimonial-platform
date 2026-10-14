@@ -2,6 +2,8 @@ package com.tfmsp.backend.controller;
 
 import java.util.List;
 
+import com.tfmsp.backend.dto.SubscriptionAssignRequest;
+import com.tfmsp.backend.dto.SubscriptionResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -63,5 +65,16 @@ public class AdminTenantController {
     public ResponseEntity<List<Plan>> getAllPlans(Authentication auth) {
         verifySuperAdmin(auth);
         return ResponseEntity.ok(tenantService.getAllPlans());
+    }
+    
+    @PostMapping("/tenants/{id}/subscription")
+    public ResponseEntity<SubscriptionResponse> assignSubscription(
+            @PathVariable Long id,
+            @Valid @RequestBody SubscriptionAssignRequest req,
+            Authentication auth) {
+        User admin = verifySuperAdmin(auth);
+        int months = req.getMonths() == null ? 1 : req.getMonths();
+        return ResponseEntity.ok(
+                tenantService.assignSubscription(id, req.getPlanId(), months, admin.getId()));
     }
 }

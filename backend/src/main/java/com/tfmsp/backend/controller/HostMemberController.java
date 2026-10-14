@@ -2,6 +2,7 @@ package com.tfmsp.backend.controller;
 
 import java.util.List;
 
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -58,8 +59,8 @@ public class HostMemberController {
             @Valid @RequestBody MemberStatusUpdateRequest req,
             Authentication auth) {
         User host = verifyHost(auth);
-        return ResponseEntity
-                .ok(tenantService.updateMemberStatus(host.getBureauId(), id, req.getStatus(), host.getId()));
+        return ResponseEntity.ok(tenantService.updateMemberStatus(
+                host.getBureauId(), id, req.getStatus(), req.getReason(), host.getId()));
     }
 
     @GetMapping("/subscription")
@@ -69,10 +70,12 @@ public class HostMemberController {
     }
 
     @PostMapping("/subscription/upgrade")
-    public ResponseEntity<SubscriptionResponse> upgradeSubscription(
+    public ResponseEntity<Map<String, String>> requestUpgrade(
             @Valid @RequestBody SubscriptionUpgradeRequest req,
             Authentication auth) {
         User host = verifyHost(auth);
-        return ResponseEntity.ok(tenantService.upgradeSubscription(host.getBureauId(), req.getPlanId(), host.getId()));
+        tenantService.requestUpgrade(host.getBureauId(), req.getPlanId(), host.getId());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of(
+                "message", "Upgrade request submitted. It takes effect after Super Admin approval."));
     }
 }
