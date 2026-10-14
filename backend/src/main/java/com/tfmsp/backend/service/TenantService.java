@@ -433,4 +433,48 @@ public class TenantService {
         res.setCreatedAt(bureau.getCreatedAt());
         return res;
     }
+    
+    @Transactional
+    public Plan createPlan(PlanRequest req, Long adminId) {
+        String name = req.getName().trim();
+        if (planRepository.findByNameIgnoreCase(name).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A plan with this name already exists");
+        }
+        Plan plan = new Plan(name, req.getPricePerMonth(), req.getMemberLimit(), req.isGovIdVerification());
+        if (req.getStatus() != null) {
+            plan.setStatus(req.getStatus());
+        }
+        Plan saved = planRepository.save(plan);
+
+        auditLogRepository.save(new AuditLog(adminId, "CREATE_PLAN", "PLAN", saved.getId(),
+                "Plan created: " + saved.getName()));
+        return saved;
+    }
+
+    @Transactional
+    public Plan updatePlan(Long planId, PlanRequest req, Long adminId) {
+        Plan plan = planRepository.findById(planId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan not found"));
+
+        String name = req.getName().trim();
+        planRepository.findByNameIgnoreCase(name).ifPresent(existing -> {
+            if (!existing.getId().equals(planId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "A plan with this name already exists");
+            }
+        });
+
+        plan.setName(name);
+        plan.setPricePerMonth(req.getPricePerMonth());
+        plan.setMemberLimit(req.getMemberLimit());
+        plan.setGovIdVerification(req.isGovIdVerification());
+        if (req.getStatus() != null) {
+            plan.setStatus(req.getStatus());
+        }
+        Plan saved = planRepository.save(plan);
+
+        auditLogRepository.save(new AuditLog(adminId, "UPDATE_PLAN", "PLAN", saved.getId(),
+                "Plan updated: " + saved.getName() + " (limit: "
+                        + (saved.getMemberLimit() == null ? "unlimited" : saved.getMemberLimit()) + ")"));
+        return saved;
+    }
 }

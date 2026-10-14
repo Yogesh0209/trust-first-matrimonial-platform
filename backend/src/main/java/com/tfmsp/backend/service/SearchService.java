@@ -92,9 +92,12 @@ public class SearchService {
         Map<Long, Bureau> bureauMap = new HashMap<>();
         for (Bureau pb : partnerBureaus) {
             bureauMap.put(pb.getId(), pb);
+            // Only members who gave cross-bureau sharing consent (FRD SRC-05)
             List<User> members = userRepository.findByBureauIdAndRole(pb.getId(), Role.END_USER)
                     .stream()
                     .filter(u -> u.getStatus() == UserStatus.ACTIVE && !u.isBlocked())
+                    .filter(u -> profileRepository.findByUserId(u.getId())
+                            .map(Profile::isShareConsent).orElse(false))
                     .collect(Collectors.toList());
             candidateUsers.addAll(members);
         }

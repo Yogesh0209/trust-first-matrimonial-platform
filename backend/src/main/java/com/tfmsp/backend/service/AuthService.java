@@ -85,6 +85,8 @@ public class AuthService {
         user.setRole(Role.END_USER);
         user.setStatus(UserStatus.PENDING);
         user.setBureauId(bureau.getId());
+        user.setGender(request.getGender());
+        user.setDateOfBirth(request.getDateOfBirth());
         user.setEmailVerified(false);
         user.setPhoneVerified(false);
 

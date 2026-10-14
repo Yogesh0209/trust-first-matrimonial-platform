@@ -12,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.tfmsp.backend.dto.BureauResponse;
 import com.tfmsp.backend.dto.BureauStatusUpdateRequest;
+import com.tfmsp.backend.dto.PlanRequest;
 import com.tfmsp.backend.entity.Plan;
 import com.tfmsp.backend.entity.User;
 import com.tfmsp.backend.enums.Role;
@@ -76,5 +77,20 @@ public class AdminTenantController {
         int months = req.getMonths() == null ? 1 : req.getMonths();
         return ResponseEntity.ok(
                 tenantService.assignSubscription(id, req.getPlanId(), months, admin.getId()));
+    }
+    
+    @PostMapping("/plans")
+    public ResponseEntity<Plan> createPlan(@Valid @RequestBody PlanRequest req, Authentication auth) {
+        User admin = verifySuperAdmin(auth);
+        return ResponseEntity.status(HttpStatus.CREATED).body(tenantService.createPlan(req, admin.getId()));
+    }
+
+    @PutMapping("/plans/{id}")
+    public ResponseEntity<Plan> updatePlan(
+            @PathVariable Long id,
+            @Valid @RequestBody PlanRequest req,
+            Authentication auth) {
+        User admin = verifySuperAdmin(auth);
+        return ResponseEntity.ok(tenantService.updatePlan(id, req, admin.getId()));
     }
 }

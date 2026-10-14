@@ -65,6 +65,12 @@ public class Profile {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Visibility visibility = Visibility.VISIBLE;
+    
+    @Column(name = "share_consent", nullable = false)
+    private boolean shareConsent = false;
+
+    @Column(name = "share_consent_at")
+    private LocalDateTime shareConsentAt;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
@@ -201,5 +207,21 @@ public class Profile {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+    
+    public boolean isShareConsent() {
+        return shareConsent;
+    }
+
+    public void setShareConsent(boolean shareConsent) {
+        this.shareConsent = shareConsent;
+    }
+
+    public LocalDateTime getShareConsentAt() {
+        return shareConsentAt;
+    }
+
+    public void setShareConsentAt(LocalDateTime shareConsentAt) {
+        this.shareConsentAt = shareConsentAt;
     }
 }

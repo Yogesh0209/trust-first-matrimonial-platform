@@ -12,6 +12,7 @@ import com.tfmsp.backend.dto.PrivacyUpdateRequest;
 import com.tfmsp.backend.dto.ProfilePhotoResponse;
 import com.tfmsp.backend.dto.ProfileRequest;
 import com.tfmsp.backend.dto.ProfileResponse;
+import com.tfmsp.backend.dto.SharingUpdateRequest;
 import com.tfmsp.backend.service.ProfileService;
 
 import jakarta.validation.Valid;
@@ -90,5 +91,16 @@ public class ProfileController {
         Long userId = Long.valueOf(principal.getName());
         profileService.updatePrivacy(userId, request);
         return ResponseEntity.ok(Map.of("message", "Privacy settings updated successfully"));
+    }
+    
+    @PutMapping("/me/sharing")
+    public ResponseEntity<Map<String, String>> updateSharing(
+            @Valid @RequestBody SharingUpdateRequest request,
+            Principal principal) {
+        Long userId = Long.valueOf(principal.getName());
+        profileService.updateSharing(userId, request);
+        return ResponseEntity.ok(Map.of("message", request.getConsent()
+                ? "Cross-bureau sharing enabled"
+                : "Cross-bureau sharing withdrawn"));
     }
 }

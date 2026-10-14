@@ -16,6 +16,7 @@ import com.tfmsp.backend.dto.PrivacyUpdateRequest;
 import com.tfmsp.backend.dto.ProfilePhotoResponse;
 import com.tfmsp.backend.dto.ProfileRequest;
 import com.tfmsp.backend.dto.ProfileResponse;
+import com.tfmsp.backend.dto.SharingUpdateRequest;
 import com.tfmsp.backend.entity.Profile;
 import com.tfmsp.backend.entity.ProfilePhoto;
 import com.tfmsp.backend.entity.User;
@@ -57,9 +58,13 @@ public class ProfileService {
         Profile profile = profileRepository.findByUserId(userId).orElseGet(() -> {
             Profile newProfile = new Profile();
             newProfile.setUserId(userId);
-            newProfile.setGender(user.getRole() != null ? com.tfmsp.backend.enums.Gender.MALE
+            // Gender and date of birth come from registration
+            newProfile.setGender(user.getGender() != null
+                    ? user.getGender()
                     : com.tfmsp.backend.enums.Gender.OTHER);
-            newProfile.setDateOfBirth(LocalDate.now().minusYears(22)); // Default fallback until set
+            newProfile.setDateOfBirth(user.getDateOfBirth() != null
+                    ? user.getDateOfBirth()
+                    : LocalDate.now().minusYears(22));
             return newProfile;
         });
 
@@ -182,6 +187,18 @@ public class ProfileService {
                     profilePhotoRepository.save(existing);
                 });
     }
+    
+    @Transactional
+    public void updateSharing(Long userId, SharingUpdateRequest request) {
+        Profile profile = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Profile not found. Please complete your profile."));
+
+        profile.setShareConsent(request.getConsent());
+        profile.setShareConsentAt(LocalDateTime.now());
+        profileRepository.save(profile);
+    }
+    
 
     /**
      * completed required fields / total required fields * 100
