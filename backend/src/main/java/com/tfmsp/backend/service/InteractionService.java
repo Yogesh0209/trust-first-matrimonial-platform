@@ -26,6 +26,7 @@ public class InteractionService {
     private final ProfilePhotoRepository profilePhotoRepository;
     private final UserRepository userRepository;
     private final ProfileService profileService;
+    private final BlockRepository blockRepository;
 
     // Anti-scam pattern: phone numbers, URLs, suspicious financial solicitation
     private static final Pattern PHONE_PATTERN = Pattern.compile("(\\+?\\d{1,4}[-\\s]?)?\\(?\\d{3}\\)?[-\\s]?\\d{3}[-\\s]?\\d{4}|\\b\\d{10}\\b");
@@ -38,13 +39,15 @@ public class InteractionService {
             ProfileRepository profileRepository,
             ProfilePhotoRepository profilePhotoRepository,
             UserRepository userRepository,
-            ProfileService profileService) {
+            ProfileService profileService,
+            BlockRepository blockRepository) {
         this.interestRepository = interestRepository;
         this.messageRepository = messageRepository;
         this.profileRepository = profileRepository;
         this.profilePhotoRepository = profilePhotoRepository;
         this.userRepository = userRepository;
         this.profileService = profileService;
+        this.blockRepository = blockRepository;
     }
 
     @Transactional
@@ -59,6 +62,8 @@ public class InteractionService {
         Profile receiverProfile = profileRepository.findById(receiverProfileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target profile not found"));
 
+        assertNotBlocked(senderProfile.getId(), receiverProfileId);
+        
         if (receiverProfile.getVisibility() != Visibility.VISIBLE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target profile is not currently visible");
         }
@@ -278,6 +283,10 @@ public class InteractionService {
             !interest.getReceiverProfileId().equals(callerProfile.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: you are not a participant in this conversation");
         }
+        
+        Long otherProfileId = interest.getSenderProfileId().equals(callerProfile.getId())
+                ? interest.getReceiverProfileId() : interest.getSenderProfileId();
+        assertNotBlocked(callerProfile.getId(), otherProfileId);
 
         if (interest.getStatus() != InterestStatus.ACCEPTED) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Messaging is only enabled after interest is ACCEPTED");
@@ -336,5 +345,12 @@ public class InteractionService {
         }
 
         return res;
+    }
+    
+    private void assertNotBlocked(Long profileA, Long profileB) {
+        if (blockRepository.existsByBlockerProfileIdAndBlockedProfileId(profileA, profileB)
+                || blockRepository.existsByBlockerProfileIdAndBlockedProfileId(profileB, profileA)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot interact with this profile");
+        }
     }
 }

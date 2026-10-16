@@ -28,6 +28,7 @@ public class SearchService {
     private final BureauRepository bureauRepository;
     private final ShortlistRepository shortlistRepository;
     private final ProfileService profileService;
+    private final BlockRepository blockRepository;
 
     public SearchService(
             ProfileRepository profileRepository,
@@ -35,13 +36,15 @@ public class SearchService {
             UserRepository userRepository,
             BureauRepository bureauRepository,
             ShortlistRepository shortlistRepository,
-            ProfileService profileService) {
+            ProfileService profileService,
+            BlockRepository blockRepository) {
         this.profileRepository = profileRepository;
         this.profilePhotoRepository = profilePhotoRepository;
         this.userRepository = userRepository;
         this.bureauRepository = bureauRepository;
         this.shortlistRepository = shortlistRepository;
         this.profileService = profileService;
+        this.blockRepository = blockRepository;
     }
 
     public List<SearchResultResponse> searchHomeBureau(Long callerUserId, SearchFilterCriteria criteria) {
@@ -187,6 +190,13 @@ public class SearchService {
 
         Map<Long, User> userMap = candidateUsers.stream().collect(Collectors.toMap(User::getId, u -> u));
         Long callerProfileId = callerProfileOpt.map(Profile::getId).orElse(null);
+        Set<Long> hiddenProfileIds = new HashSet<>();
+        if (callerProfileId != null) {
+            for (Block b : blockRepository.findByBlockerProfileIdOrBlockedProfileId(callerProfileId, callerProfileId)) {
+                hiddenProfileIds.add(b.getBlockerProfileId().equals(callerProfileId)
+                        ? b.getBlockedProfileId() : b.getBlockerProfileId());
+            }
+        }
 
         // Determine default target gender if caller has a gender and criteria does not specify
         Gender targetGender = (criteria != null && criteria.getGender() != null)
@@ -202,6 +212,7 @@ public class SearchService {
         for (Profile p : profiles) {
             User user = userMap.get(p.getUserId());
             if (user == null) continue;
+            if (hiddenProfileIds.contains(p.getId())) continue;
 
             // 1. Gender filter
             if (targetGender != null && p.getGender() != targetGender) {
