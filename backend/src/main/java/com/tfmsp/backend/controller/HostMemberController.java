@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.tfmsp.backend.dto.BureauSharingRequest;
 import com.tfmsp.backend.dto.MemberStatusUpdateRequest;
 import com.tfmsp.backend.dto.MemberSummaryResponse;
 import com.tfmsp.backend.dto.SubscriptionResponse;
@@ -77,5 +78,17 @@ public class HostMemberController {
         tenantService.requestUpgrade(host.getBureauId(), req.getPlanId(), host.getId());
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of(
                 "message", "Upgrade request submitted. It takes effect after Super Admin approval."));
+    }
+    
+    @PutMapping("/sharing")
+    public ResponseEntity<java.util.Map<String, Object>> updateSharing(
+            @Valid @RequestBody BureauSharingRequest req,
+            Authentication auth) {
+        User host = verifyHost(auth);
+        tenantService.updateBureauSharing(host.getBureauId(), req);
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "Sharing settings updated",
+                "shareMembers", req.getShareMembers(),
+                "searchOtherBureaus", req.getSearchOtherBureaus()));
     }
 }

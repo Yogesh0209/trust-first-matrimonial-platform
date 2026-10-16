@@ -477,4 +477,16 @@ public class TenantService {
                         + (saved.getMemberLimit() == null ? "unlimited" : saved.getMemberLimit()) + ")"));
         return saved;
     }
+    
+    @Transactional
+    public void updateBureauSharing(Long bureauId, BureauSharingRequest req) {
+        Bureau bureau = bureauRepository.findById(bureauId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bureau not found"));
+        bureau.setShareMembers(req.getShareMembers());
+        bureau.setSearchOtherBureaus(req.getSearchOtherBureaus());
+        if (req.getShowBureauName() != null) {
+            bureau.setShowBureauName(req.getShowBureauName());
+        }
+        bureauRepository.save(bureau);
+    }
 }
