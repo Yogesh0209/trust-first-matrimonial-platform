@@ -27,6 +27,7 @@ public class InteractionService {
     private final UserRepository userRepository;
     private final ProfileService profileService;
     private final BlockRepository blockRepository;
+    private final NotificationService notificationService;
 
     // Anti-scam pattern: phone numbers, URLs, suspicious financial solicitation
     private static final Pattern PHONE_PATTERN = Pattern.compile("(\\+?\\d{1,4}[-\\s]?)?\\(?\\d{3}\\)?[-\\s]?\\d{3}[-\\s]?\\d{4}|\\b\\d{10}\\b");
@@ -40,7 +41,8 @@ public class InteractionService {
             ProfilePhotoRepository profilePhotoRepository,
             UserRepository userRepository,
             ProfileService profileService,
-            BlockRepository blockRepository) {
+            BlockRepository blockRepository,
+            NotificationService notificationService) {
         this.interestRepository = interestRepository;
         this.messageRepository = messageRepository;
         this.profileRepository = profileRepository;
@@ -48,6 +50,7 @@ public class InteractionService {
         this.userRepository = userRepository;
         this.profileService = profileService;
         this.blockRepository = blockRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -95,6 +98,10 @@ public class InteractionService {
         Interest saved = interestRepository.save(interest);
 
         User senderUser = userRepository.findById(senderUserId).orElse(null);
+        
+        notificationService.notify(receiverUser.getId(), "INTEREST_RECEIVED",
+                "You received a new interest" + (senderUser != null ? " from " + senderUser.getFullName() : ""));
+        
         return toInterestResponse(saved, senderUser, receiverUser, receiverProfile);
     }
 
@@ -128,6 +135,14 @@ public class InteractionService {
         Profile senderProfile = profileRepository.findById(saved.getSenderProfileId()).orElse(null);
         User senderUser = (senderProfile != null) ? userRepository.findById(senderProfile.getUserId()).orElse(null) : null;
         User receiverUser = userRepository.findById(receiverUserId).orElse(null);
+        
+        if (senderUser != null) {
+            boolean accepted = saved.getStatus() == InterestStatus.ACCEPTED;
+            notificationService.notify(senderUser.getId(),
+                    accepted ? "INTEREST_ACCEPTED" : "INTEREST_DECLINED",
+                    "Your interest was " + (accepted ? "accepted" : "declined")
+                            + (receiverUser != null ? " by " + receiverUser.getFullName() : ""));
+        }
 
         return toInterestResponse(saved, senderUser, receiverUser, senderProfile);
     }

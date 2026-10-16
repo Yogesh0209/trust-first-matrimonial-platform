@@ -43,6 +43,9 @@ class InteractionServiceTest {
     
     @Mock
     private BlockRepository blockRepository;
+    
+    @Mock 
+    private NotificationService notificationService;
 
     @BeforeEach
     void setUp() {
@@ -53,7 +56,8 @@ class InteractionServiceTest {
                 profilePhotoRepository,
                 userRepository,
                 profileService,
-                blockRepository
+                blockRepository,
+                notificationService
         );
     }
 
