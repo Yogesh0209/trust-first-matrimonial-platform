@@ -13,6 +13,7 @@ import com.tfmsp.backend.dto.ProfilePhotoResponse;
 import com.tfmsp.backend.dto.ProfileRequest;
 import com.tfmsp.backend.dto.ProfileResponse;
 import com.tfmsp.backend.dto.SharingUpdateRequest;
+import com.tfmsp.backend.dto.StillLookingRequest;
 import com.tfmsp.backend.service.ProfileService;
 
 import jakarta.validation.Valid;
@@ -102,5 +103,14 @@ public class ProfileController {
         return ResponseEntity.ok(Map.of("message", request.getConsent()
                 ? "Cross-bureau sharing enabled"
                 : "Cross-bureau sharing withdrawn"));
+    }
+    
+    @PostMapping("/me/still-looking")
+    public ResponseEntity<Map<String, String>> stillLooking(
+            @Valid @RequestBody StillLookingRequest request,
+            Principal principal) {
+        Long userId = Long.valueOf(principal.getName());
+        String newStatus = freshnessService.respondStillLooking(userId, request.getStatus());
+        return ResponseEntity.ok(Map.of("message", "Status updated", "accountStatus", newStatus));
     }
 }

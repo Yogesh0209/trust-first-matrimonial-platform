@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.tfmsp.backend.dto.StillLookingRequest;
 import com.tfmsp.backend.entity.AuditLog;
 import com.tfmsp.backend.entity.Profile;
 import com.tfmsp.backend.entity.User;
@@ -87,5 +88,44 @@ public class FreshnessService {
 
         System.out.println("Freshness sweep finished. Profiles hidden: " + hiddenCount);
         return hiddenCount;
+    }
+    
+    @Transactional
+    public String respondStillLooking(Long userId, StillLookingRequest.Choice choice) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        // only normal members can change their own status; pending/suspended/etc. cannot
+        if (user.getStatus() != UserStatus.ACTIVE && user.getStatus() != UserStatus.PAUSED) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Your account status does not allow this action");
+        }
+
+        String action;
+        switch (choice) {
+            case ACTIVE -> {
+                user.setStatus(UserStatus.ACTIVE);
+                user.setLastActiveAt(LocalDateTime.now());
+                profileRepository.findByUserId(userId).ifPresent(p -> {
+                    p.setVisibility(Visibility.VISIBLE);
+                    profileRepository.save(p);
+                });
+                action = "STILL_LOOKING";
+            }
+            case PAUSED -> {
+                user.setStatus(UserStatus.PAUSED);
+                action = "PROFILE_PAUSED";
+            }
+            default -> {
+                user.setStatus(UserStatus.ARCHIVED);
+                action = "ENGAGED_OR_MARRIED";
+            }
+        }
+        userRepository.save(user);
+
+        auditLogRepository.save(new AuditLog(userId, action, "USER", userId,
+                "Member answered 'Still looking?' with " + choice));
+
+        return user.getStatus().name();
     }
 }
