@@ -72,17 +72,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     // 3. Catches ResponseStatusException thrown by our business services
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex) {
-        String code = ex.getStatusCode().toString();
-        if (ex.getStatusCode() == HttpStatus.CONFLICT) {
-            code = "CONFLICT";
-        } else if (ex.getStatusCode() == HttpStatus.FORBIDDEN) {
+        HttpStatus http = HttpStatus.resolve(ex.getStatusCode().value());
+        // BAD_REQUEST, NOT_FOUND, UNAUTHORIZED, CONFLICT, TOO_MANY_REQUESTS ...
+        String code = http != null ? http.name() : "ERROR";
+
+        if (ex.getStatusCode() == HttpStatus.FORBIDDEN) {
             code = ex.getReason() != null && ex.getReason().contains("PLAN")
                     ? "PLAN_RESTRICTED"
                     : "FORBIDDEN";
-        } else if (ex.getStatusCode() == HttpStatus.UNAUTHORIZED) {
-            code = "UNAUTHORIZED";
-        } else if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
-            code = "NOT_FOUND";
         }
 
         ApiError body = new ApiError(ex.getStatusCode().value(), code, ex.getReason());

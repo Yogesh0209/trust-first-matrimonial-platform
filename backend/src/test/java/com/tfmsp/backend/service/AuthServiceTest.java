@@ -23,9 +23,11 @@ import com.tfmsp.backend.entity.Bureau;
 import com.tfmsp.backend.entity.User;
 import com.tfmsp.backend.enums.Gender;
 import com.tfmsp.backend.enums.Role;
+import com.tfmsp.backend.repository.AuditLogRepository;
 import com.tfmsp.backend.repository.BureauRepository;
 import com.tfmsp.backend.repository.UserRepository;
 import com.tfmsp.backend.security.JwtService;
+import com.tfmsp.backend.repository.AuditLogRepository;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -47,10 +49,13 @@ class AuthServiceTest {
 
     private AuthService authService;
 
+    @Mock
+    private AuditLogRepository auditLogRepository;
+    
     @BeforeEach
     void setUp() {
         authService = new AuthService(userRepository, bureauRepository, passwordEncoder,
-                jwtService, planLimitService);
+                jwtService, planLimitService, auditLogRepository);
     }
 
     private RegisterRequest createValidRequest() {
@@ -171,7 +176,7 @@ class AuthServiceTest {
 
         // 5th failed attempt should lock
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.login(req));
-        assertEquals(HttpStatus.LOCKED, ex.getStatusCode());
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
         assertTrue(user.isAccountLocked());
         assertEquals(5, user.getFailedLoginAttempts());
         assertNotNull(user.getLockedUntil());

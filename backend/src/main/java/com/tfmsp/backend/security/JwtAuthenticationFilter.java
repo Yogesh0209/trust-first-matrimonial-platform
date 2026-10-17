@@ -117,4 +117,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         res.getWriter().write("{\"status\":" + status + ",\"code\":\"" + code
                 + "\",\"message\":\"" + message + "\"}");
     }
+    
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        boolean publicAuth = path.startsWith("/api/auth/") && !path.equals("/api/auth/change-password");
+        return publicAuth
+                || path.equals("/api/tenants/register")
+                || path.startsWith("/actuator/health");
+    }
 }

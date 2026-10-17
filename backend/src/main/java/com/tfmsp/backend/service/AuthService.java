@@ -1,14 +1,13 @@
 package com.tfmsp.backend.service;
 
 import java.time.LocalDate;
-
 import java.time.LocalDateTime;
 import java.time.Period;
 
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.tfmsp.backend.dto.AuthResponse;
@@ -16,11 +15,13 @@ import com.tfmsp.backend.dto.ChangePasswordRequest;
 import com.tfmsp.backend.dto.LoginRequest;
 import com.tfmsp.backend.dto.RegisterRequest;
 import com.tfmsp.backend.dto.UserResponse;
+import com.tfmsp.backend.entity.AuditLog;
 import com.tfmsp.backend.entity.Bureau;
 import com.tfmsp.backend.entity.User;
 import com.tfmsp.backend.enums.Gender;
 import com.tfmsp.backend.enums.Role;
 import com.tfmsp.backend.enums.UserStatus;
+import com.tfmsp.backend.repository.AuditLogRepository;
 import com.tfmsp.backend.repository.BureauRepository;
 import com.tfmsp.backend.repository.UserRepository;
 import com.tfmsp.backend.security.JwtService;
@@ -28,22 +29,29 @@ import com.tfmsp.backend.security.JwtService;
 @Service
 public class AuthService {
 
+    // one message for every login failure, so nobody can tell if an email exists
+    private static final String LOGIN_FAILED_MESSAGE =
+            "Invalid email or password, or the account is temporarily locked. Please try again later.";
+
     private final UserRepository userRepository;
     private final BureauRepository bureauRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final PlanLimitService planLimitService;
+    private final AuditLogRepository auditLogRepository;
 
     public AuthService(UserRepository userRepository,
             BureauRepository bureauRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            PlanLimitService planLimitService) {
+            PlanLimitService planLimitService,
+            AuditLogRepository auditLogRepository) {
         this.userRepository = userRepository;
         this.bureauRepository = bureauRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.planLimitService = planLimitService;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Transactional
@@ -98,12 +106,12 @@ public class AuthService {
         String email = request.getEmail().trim().toLowerCase();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, LOGIN_FAILED_MESSAGE));
 
-        // 1. Check if account is locked (FRD AUTH-03: 15 min lock after 5 failed attempts)
+        // 1. Account locked (FRD AUTH-03: 15 min lock after 5 failed attempts)
         if (user.isAccountLocked()) {
-            throw new ResponseStatusException(HttpStatus.LOCKED,
-                    "Account is locked due to 5 failed attempts. Please try again later.");
+            audit(user.getId(), "LOGIN_FAILED", "Login attempt while account is locked");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, LOGIN_FAILED_MESSAGE);
         }
 
         // 2. Check password
@@ -113,14 +121,15 @@ public class AuthService {
             if (attempts >= 5) {
                 user.setLockedUntil(LocalDateTime.now().plusMinutes(15));
                 userRepository.save(user);
-                throw new ResponseStatusException(HttpStatus.LOCKED,
-                        "Account locked for 15 minutes due to 5 failed login attempts");
+                audit(user.getId(), "ACCOUNT_LOCKED", "Account locked for 15 minutes after 5 failed logins");
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, LOGIN_FAILED_MESSAGE);
             }
             userRepository.save(user);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+            audit(user.getId(), "LOGIN_FAILED", "Failed login attempt " + attempts + " of 5");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, LOGIN_FAILED_MESSAGE);
         }
 
-        // 3. Check if user is blocked or suspended (FRD Section 1.3, 1.5)
+        // 3. Blocked, suspended or deleted (FRD Section 1.3, 1.5)
         if (user.isBlocked() || user.getStatus() == UserStatus.SUSPENDED) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Your account has been suspended");
         }
@@ -128,7 +137,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Your account has been deleted");
         }
 
-        // Check if home bureau is suspended (FRD Section 1.3)
+        // Home bureau suspended (FRD Section 1.3)
         if (user.getBureauId() != null) {
             Bureau bureau = bureauRepository.findById(user.getBureauId()).orElse(null);
             if (bureau != null && "SUSPENDED".equalsIgnoreCase(bureau.getStatus())) {
@@ -136,17 +145,18 @@ public class AuthService {
             }
         }
 
-        // 4. Successful login: Reset failed attempts & update last active time (FRD FRE-01)
+        // 4. Successful login: reset failed attempts and update last active time (FRD FRE-01)
         user.setFailedLoginAttempts(0);
         user.setLockedUntil(null);
         user.setLastActiveAt(LocalDateTime.now());
         userRepository.save(user);
+        audit(user.getId(), "LOGIN_SUCCESS", "User logged in");
 
         String token = jwtService.generateToken(user);
         return new AuthResponse(token, user.getRole(), user.getBureauId(), jwtService.getExpirationSeconds());
     }
 
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public void changePassword(Long userId, ChangePasswordRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
@@ -157,6 +167,11 @@ public class AuthService {
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    // never put passwords, tokens or OTPs in the details text (FRD SYS-04)
+    private void audit(Long userId, String action, String details) {
+        auditLogRepository.save(new AuditLog(userId, action, "USER", userId, details));
     }
 
     private void validateLegalAge(Gender gender, LocalDate dateOfBirth) {

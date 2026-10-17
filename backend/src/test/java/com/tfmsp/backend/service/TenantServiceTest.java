@@ -90,7 +90,7 @@ class TenantServiceTest {
 
         Plan freePlan = new Plan("Free", BigDecimal.ZERO, 100, false);
         freePlan.setId(1L);
-        when(planRepository.findByNameIgnoreCase("Free")).thenReturn(Optional.of(freePlan));
+        when(planRepository.findByNameIgnoreCase("Basic")).thenReturn(Optional.of(freePlan));
 
         BureauResponse resp = tenantService.registerBureau(req);
 
