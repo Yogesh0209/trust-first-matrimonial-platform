@@ -8,7 +8,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.data.domain.PageRequest;
+import java.util.stream.Collectors;
 
+import com.tfmsp.backend.dto.AuditLogResponse;
 import com.tfmsp.backend.dto.StillLookingRequest;
 import com.tfmsp.backend.entity.AuditLog;
 import com.tfmsp.backend.entity.Profile;
@@ -87,6 +90,13 @@ public class FreshnessService {
         }
 
         System.out.println("Freshness sweep finished. Profiles hidden: " + hiddenCount);
+        auditLogRepository.save(new AuditLog(
+                null,
+                "FRESHNESS_SWEEP",
+                "SYSTEM",
+                null,
+                "Freshness sweep finished: " + hiddenCount + " profile(s) hidden"
+        ));
         return hiddenCount;
     }
     
@@ -127,5 +137,24 @@ public class FreshnessService {
                 "Member answered 'Still looking?' with " + choice));
 
         return user.getStatus().name();
+    }
+    
+    @Transactional(readOnly = true)
+    public List<AuditLogResponse> getRecentRuns(int limit) {
+        int size = Math.max(1, Math.min(limit, 100));
+        return auditLogRepository.findByActionOrderByCreatedAtDesc("FRESHNESS_SWEEP", PageRequest.of(0, size))
+                .stream()
+                .map(log -> {
+                    AuditLogResponse res = new AuditLogResponse();
+                    res.setId(log.getId());
+                    res.setActorUserId(log.getActorUserId());
+                    res.setAction(log.getAction());
+                    res.setEntityType(log.getEntityType());
+                    res.setEntityId(log.getEntityId());
+                    res.setDetails(log.getDetails());
+                    res.setCreatedAt(log.getCreatedAt());
+                    return res;
+                })
+                .collect(Collectors.toList());
     }
 }
