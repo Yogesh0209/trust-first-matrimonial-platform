@@ -18,6 +18,9 @@ import com.tfmsp.backend.entity.User;
 import com.tfmsp.backend.enums.Role;
 import com.tfmsp.backend.repository.UserRepository;
 import com.tfmsp.backend.service.TenantService;
+import com.tfmsp.backend.dto.HostAddMemberRequest;
+import com.tfmsp.backend.dto.UserResponse;
+import com.tfmsp.backend.service.HostMemberService;
 
 import jakarta.validation.Valid;
 
@@ -27,10 +30,12 @@ public class HostMemberController {
 
     private final TenantService tenantService;
     private final UserRepository userRepository;
+    private final HostMemberService hostMemberService;
 
-    public HostMemberController(TenantService tenantService, UserRepository userRepository) {
+    public HostMemberController(TenantService tenantService, UserRepository userRepository, HostMemberService hostMemberService) {
         this.tenantService = tenantService;
         this.userRepository = userRepository;
+        this.hostMemberService = hostMemberService;
     }
 
     private User verifyHost(Authentication auth) {
@@ -90,5 +95,14 @@ public class HostMemberController {
                 "message", "Sharing settings updated",
                 "shareMembers", req.getShareMembers(),
                 "searchOtherBureaus", req.getSearchOtherBureaus()));
+    }
+    
+    @PostMapping("/members")
+    public ResponseEntity<UserResponse> addMember(
+            @Valid @RequestBody HostAddMemberRequest req,
+            Authentication auth) {
+        User host = verifyHost(auth);
+        UserResponse created = hostMemberService.addMember(host.getId(), req);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 }
