@@ -19,4 +19,10 @@ public interface VerificationRepository extends JpaRepository<Verification, Long
     long countByProfileIdAndTypeAndSubmittedAtAfter(Long profileId, VerificationType type, LocalDateTime after);
 
     List<Verification> findByStatusOrderBySubmittedAtAsc(ReviewStatus status);
+    
+    List<Verification> findByStatusAndProfileIdInOrderBySubmittedAtAsc(
+            ReviewStatus status, List<Long> profileIds);
+
+    Optional<Verification> findByIdAndProfileIdIn(
+            Long id, List<Long> profileIds);
 }

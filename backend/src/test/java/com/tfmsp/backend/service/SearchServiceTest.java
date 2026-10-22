@@ -45,6 +45,8 @@ class SearchServiceTest {
     
     @Mock
     private BlockRepository blockRepository;
+    
+    @Mock private ProfileAccessService profileAccessService;
 
     @BeforeEach
     void setUp() {
@@ -55,7 +57,8 @@ class SearchServiceTest {
                 bureauRepository,
                 shortlistRepository,
                 profileService,
-                blockRepository
+                blockRepository,
+                profileAccessService
         );
     }
 

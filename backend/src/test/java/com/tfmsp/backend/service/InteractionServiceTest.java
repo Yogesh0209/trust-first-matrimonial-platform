@@ -46,6 +46,8 @@ class InteractionServiceTest {
     
     @Mock 
     private NotificationService notificationService;
+    
+    @Mock private ProfileAccessService profileAccessService;
 
     @BeforeEach
     void setUp() {
@@ -57,7 +59,8 @@ class InteractionServiceTest {
                 userRepository,
                 profileService,
                 blockRepository,
-                notificationService
+                notificationService,
+                profileAccessService
         );
     }
 

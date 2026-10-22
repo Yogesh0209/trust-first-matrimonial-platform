@@ -1,6 +1,7 @@
 package com.tfmsp.backend.repository;
 
 import java.util.Optional;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -18,4 +19,6 @@ public interface ProfileRepository extends JpaRepository<Profile, Long> {
     java.util.List<Profile> findByVisibility(Visibility visibility);
 
     java.util.List<Profile> findByUserIdInAndVisibility(java.util.List<Long> userIds, Visibility visibility);
+    
+    List<Profile> findByUserIdIn(List<Long> userIds);
 }

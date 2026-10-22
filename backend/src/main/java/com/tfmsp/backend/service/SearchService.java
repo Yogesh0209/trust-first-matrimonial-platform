@@ -29,6 +29,7 @@ public class SearchService {
     private final ShortlistRepository shortlistRepository;
     private final ProfileService profileService;
     private final BlockRepository blockRepository;
+    private final ProfileAccessService profileAccessService;
 
     public SearchService(
             ProfileRepository profileRepository,
@@ -37,7 +38,8 @@ public class SearchService {
             BureauRepository bureauRepository,
             ShortlistRepository shortlistRepository,
             ProfileService profileService,
-            BlockRepository blockRepository) {
+            BlockRepository blockRepository,
+            ProfileAccessService profileAccessService) {
         this.profileRepository = profileRepository;
         this.profilePhotoRepository = profilePhotoRepository;
         this.userRepository = userRepository;
@@ -45,6 +47,7 @@ public class SearchService {
         this.shortlistRepository = shortlistRepository;
         this.profileService = profileService;
         this.blockRepository = blockRepository;
+        this.profileAccessService = profileAccessService;
     }
 
     public List<SearchResultResponse> searchHomeBureau(Long callerUserId, SearchFilterCriteria criteria) {
@@ -119,6 +122,7 @@ public class SearchService {
 
         Profile targetProfile = profileRepository.findById(targetProfileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target profile not found"));
+        profileAccessService.assertCanView(callerUserId, targetProfile);
 
         if (targetProfile.getVisibility() != Visibility.VISIBLE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot shortlist a hidden profile");

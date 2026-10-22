@@ -56,6 +56,7 @@ public class HostModerationController {
             @Valid @RequestBody ReportResolveRequest req,
             Authentication auth) {
         User host = verifyHost(auth);
-        return ResponseEntity.ok(moderationService.resolveReport(id, req.getStatus(), host.getId()));
+        Long scope = host.getRole() == Role.HOST ? host.getBureauId() : null;
+        return ResponseEntity.ok(moderationService.resolveReport(id, req.getStatus(), host.getId(), scope));
     }
 }

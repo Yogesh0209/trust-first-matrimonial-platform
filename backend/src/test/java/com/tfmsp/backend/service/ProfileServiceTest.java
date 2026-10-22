@@ -50,9 +50,11 @@ class ProfileServiceTest {
 
     private ProfileService profileService;
 
+    @Mock private ProfileAccessService profileAccessService;
+    
     @BeforeEach
     void setUp() {
-        profileService = new ProfileService(profileRepository, profilePhotoRepository, userRepository);
+        profileService = new ProfileService(profileRepository, profilePhotoRepository, userRepository, profileAccessService);
     }
 
     private User createSampleUser(Long userId) {

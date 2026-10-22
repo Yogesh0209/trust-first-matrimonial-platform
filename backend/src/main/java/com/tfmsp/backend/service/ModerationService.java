@@ -89,11 +89,21 @@ public class ModerationService {
 
         return toReportResponse(savedReport, reporterUser, reportedUser);
     }
-
+    
     @Transactional
     public ReportResponse resolveReport(Long reportId, ReportStatus resolution, Long moderatorUserId) {
+        return resolveReport(reportId, resolution, moderatorUserId, null);
+    }
+
+    @Transactional
+    public ReportResponse resolveReport(Long reportId, ReportStatus resolution, Long moderatorUserId, Long bureauScope) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found"));
+
+        // a Host can only resolve reports about members of their own bureau
+        if (bureauScope != null && !reportBelongsToBureau(report, bureauScope)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found");
+        }
 
         report.setStatus(resolution);
         report.setHandledBy(moderatorUserId);
@@ -188,5 +198,12 @@ public class ModerationService {
         }
 
         return res;
+    }
+    
+    private boolean reportBelongsToBureau(Report report, Long bureauId) {
+        return profileRepository.findById(report.getReportedProfileId())
+                .flatMap(p -> userRepository.findById(p.getUserId()))
+                .map(u -> bureauId.equals(u.getBureauId()))
+                .orElse(false);
     }
 }

@@ -32,13 +32,16 @@ public class ProfileService {
     private final ProfileRepository profileRepository;
     private final ProfilePhotoRepository profilePhotoRepository;
     private final UserRepository userRepository;
+    private final ProfileAccessService profileAccessService;
 
     public ProfileService(ProfileRepository profileRepository,
             ProfilePhotoRepository profilePhotoRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ProfileAccessService profileAccessService) {
         this.profileRepository = profileRepository;
         this.profilePhotoRepository = profilePhotoRepository;
         this.userRepository = userRepository;
+        this.profileAccessService = profileAccessService;
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +99,7 @@ public class ProfileService {
     public ProfileResponse getPublicProfile(Long profileId, Long viewerUserId) {
         Profile profile = profileRepository.findById(profileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found"));
+        profileAccessService.assertCanView(viewerUserId, profile);
 
         boolean isOwner = profile.getUserId().equals(viewerUserId);
 

@@ -17,6 +17,7 @@ import com.tfmsp.backend.entity.Profile;
 import com.tfmsp.backend.entity.User;
 import com.tfmsp.backend.entity.Verification;
 import com.tfmsp.backend.enums.ReviewStatus;
+import com.tfmsp.backend.enums.Role;
 import com.tfmsp.backend.enums.VerificationType;
 import com.tfmsp.backend.repository.ProfileRepository;
 import com.tfmsp.backend.repository.UserRepository;
@@ -76,18 +77,28 @@ public class VerificationService {
 
     @Transactional(readOnly = true)
     public List<VerificationResponse> getReviewQueue(Long reviewerUserId) {
-        User reviewer = userRepository.findById(reviewerUserId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reviewer not found"));
+        User reviewer = userRepository.findById(reviewerUserId).orElse(null);
+        Long bureauScope = hostBureauScope(reviewer);
 
         // Oldest-first review queue per FRD VER-04
         List<Verification> queue = verificationRepository.findByStatusOrderBySubmittedAtAsc(ReviewStatus.PENDING);
-        return queue.stream().map(this::mapToResponse).collect(Collectors.toList());
+        return queue.stream()
+                .filter(v -> bureauScope == null || belongsToBureau(v.getProfileId(), bureauScope))
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Transactional
     public VerificationResponse reviewVerification(Long reviewerUserId, Long verificationId, VerificationReviewRequest request) {
         Verification verification = verificationRepository.findById(verificationId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Verification case not found"));
+
+        // a Host can only decide cases of their own bureau
+        User reviewer = userRepository.findById(reviewerUserId).orElse(null);
+        Long bureauScope = hostBureauScope(reviewer);
+        if (bureauScope != null && !belongsToBureau(verification.getProfileId(), bureauScope)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Verification case not found");
+        }
 
         if (verification.getStatus() != ReviewStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This verification case has already been decided");
@@ -122,6 +133,25 @@ public class VerificationService {
 
         Verification saved = verificationRepository.save(verification);
         return mapToResponse(saved);
+    }
+
+    // Host -> own bureau id; Super Admin -> null (sees all); anyone else -> 403.
+    // reviewer == null cannot happen in the running app (the JWT filter loads the user), only in unit tests.
+    private Long hostBureauScope(User reviewer) {
+        if (reviewer == null || reviewer.getRole() == Role.SUPER_ADMIN) {
+            return null;
+        }
+        if (reviewer.getRole() == Role.HOST && reviewer.getBureauId() != null) {
+            return reviewer.getBureauId();
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: Host role required");
+    }
+
+    private boolean belongsToBureau(Long profileId, Long bureauId) {
+        return profileRepository.findById(profileId)
+                .flatMap(p -> userRepository.findById(p.getUserId()))
+                .map(u -> bureauId.equals(u.getBureauId()))
+                .orElse(false);
     }
 
     private void checkResubmissionLimit(Long profileId, VerificationType type) {

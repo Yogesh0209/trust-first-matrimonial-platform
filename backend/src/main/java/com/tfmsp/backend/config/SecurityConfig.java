@@ -18,54 +18,48 @@ import jakarta.servlet.http.HttpServletResponse;
 @Configuration
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-    }
+	public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+		this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+	}
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-        http
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/change-password").authenticated()
-                .requestMatchers(
-                    "/api/auth/**",
-                    "/api/tenants/register",
-                    "/actuator/health",
-                    "/error"
-                ).permitAll()
-                .anyRequest().authenticated()
-            )
-            .exceptionHandling(ex -> ex
-                .authenticationEntryPoint((req, res, e) ->
-                    writeError(res, 401, "UNAUTHORIZED", "Authentication required"))
-                .accessDeniedHandler((req, res, e) ->
-                    writeError(res, 403, "FORBIDDEN", "Access denied"))
-            )
-            .addFilterBefore(
-                jwtAuthenticationFilter,
-                UsernamePasswordAuthenticationFilter.class
-            );
+		http.csrf(csrf -> csrf.disable())
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-        return http.build();
-    }
+				.authorizeHttpRequests(auth -> auth
+					    .requestMatchers("/api/auth/change-password").authenticated()
+					    .requestMatchers(
+					        "/api/auth/**",
+					        "/api/tenants/register",
+					        "/actuator/health",
+					        "/error"
+					    ).permitAll()
+					    .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
+					    .requestMatchers("/api/host/**").hasAnyRole("HOST", "SUPER_ADMIN")
+					    .anyRequest().authenticated()
+					)
 
-    private void writeError(HttpServletResponse res, int status, String code, String message)
-            throws IOException {
-        res.setStatus(status);
-        res.setContentType("application/json");
-        res.getWriter().write("{\"status\":" + status + ",\"code\":\"" + code
-                + "\",\"message\":\"" + message + "\"}");
-    }
+				.exceptionHandling(ex -> ex
+						.authenticationEntryPoint(
+								(req, res, e) -> writeError(res, 401, "UNAUTHORIZED", "Authentication required"))
+						.accessDeniedHandler((req, res, e) -> writeError(res, 403, "FORBIDDEN", "Access denied")))
+				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+		return http.build();
+	}
+
+	private void writeError(HttpServletResponse res, int status, String code, String message) throws IOException {
+		res.setStatus(status);
+		res.setContentType("application/json");
+		res.getWriter().write("{\"status\":" + status + ",\"code\":\"" + code + "\",\"message\":\"" + message + "\"}");
+	}
 }

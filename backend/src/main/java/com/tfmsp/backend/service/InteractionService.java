@@ -28,6 +28,7 @@ public class InteractionService {
     private final ProfileService profileService;
     private final BlockRepository blockRepository;
     private final NotificationService notificationService;
+    private final ProfileAccessService profileAccessService;
 
     // Anti-scam pattern: phone numbers, URLs, suspicious financial solicitation
     private static final Pattern PHONE_PATTERN = Pattern.compile("(\\+?\\d{1,4}[-\\s]?)?\\(?\\d{3}\\)?[-\\s]?\\d{3}[-\\s]?\\d{4}|\\b\\d{10}\\b");
@@ -42,7 +43,8 @@ public class InteractionService {
             UserRepository userRepository,
             ProfileService profileService,
             BlockRepository blockRepository,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            ProfileAccessService profileAccessService) {
         this.interestRepository = interestRepository;
         this.messageRepository = messageRepository;
         this.profileRepository = profileRepository;
@@ -51,6 +53,7 @@ public class InteractionService {
         this.profileService = profileService;
         this.blockRepository = blockRepository;
         this.notificationService = notificationService;
+        this.profileAccessService = profileAccessService;
     }
 
     @Transactional
@@ -66,6 +69,7 @@ public class InteractionService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target profile not found"));
 
         assertNotBlocked(senderProfile.getId(), receiverProfileId);
+        profileAccessService.assertCanView(senderUserId, receiverProfile);
         
         if (receiverProfile.getVisibility() != Visibility.VISIBLE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target profile is not currently visible");
