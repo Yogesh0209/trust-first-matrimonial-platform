@@ -25,6 +25,7 @@ import com.tfmsp.backend.enums.Visibility;
 import com.tfmsp.backend.repository.ProfilePhotoRepository;
 import com.tfmsp.backend.repository.ProfileRepository;
 import com.tfmsp.backend.repository.UserRepository;
+import com.tfmsp.backend.util.TextSanitizer;
 
 @Service
 public class ProfileService {
@@ -72,14 +73,14 @@ public class ProfileService {
         });
 
         profile.setMaritalStatus(request.getMaritalStatus());
-        profile.setReligion(request.getReligion());
-        profile.setMotherTongue(request.getMotherTongue());
-        profile.setCity(request.getCity());
         profile.setHeightCm(request.getHeightCm());
-        profile.setEducation(request.getEducation());
-        profile.setOccupation(request.getOccupation());
-        profile.setFamilyType(request.getFamilyType());
-        profile.setAbout(request.getAbout());
+        profile.setReligion(TextSanitizer.clean(request.getReligion()));
+        profile.setMotherTongue(TextSanitizer.clean(request.getMotherTongue()));
+        profile.setCity(TextSanitizer.clean(request.getCity()));
+        profile.setEducation(TextSanitizer.clean(request.getEducation()));
+        profile.setOccupation(TextSanitizer.clean(request.getOccupation()));
+        profile.setFamilyType(TextSanitizer.clean(request.getFamilyType()));
+        profile.setAbout(TextSanitizer.clean(request.getAbout()));
 
         Profile saved = profileRepository.save(profile);
 

@@ -21,6 +21,7 @@ import com.tfmsp.backend.service.TenantService;
 import com.tfmsp.backend.dto.HostAddMemberRequest;
 import com.tfmsp.backend.dto.UserResponse;
 import com.tfmsp.backend.service.HostMemberService;
+import com.tfmsp.backend.service.PlanLimitService;
 
 import jakarta.validation.Valid;
 
@@ -31,14 +32,17 @@ public class HostMemberController {
     private final TenantService tenantService;
     private final UserRepository userRepository;
     private final HostMemberService hostMemberService;
+    private final PlanLimitService planLimitService;
 
-    public HostMemberController(TenantService tenantService, UserRepository userRepository, HostMemberService hostMemberService) {
+    public HostMemberController(TenantService tenantService, UserRepository userRepository, HostMemberService hostMemberService, PlanLimitService planLimitService) {
         this.tenantService = tenantService;
         this.userRepository = userRepository;
         this.hostMemberService = hostMemberService;
+        this.planLimitService = planLimitService;
     }
 
     private User verifyHost(Authentication auth) {
+    	
         if (auth == null || auth.getName() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
         }
@@ -47,6 +51,7 @@ public class HostMemberController {
         if (user.getRole() != Role.HOST && user.getRole() != Role.SUPER_ADMIN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: Host role required");
         }
+        
         if (user.getBureauId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is not associated with any bureau");
         }
@@ -90,6 +95,9 @@ public class HostMemberController {
             @Valid @RequestBody BureauSharingRequest req,
             Authentication auth) {
         User host = verifyHost(auth);
+        if (Boolean.TRUE.equals(req.getShareMembers()) || Boolean.TRUE.equals(req.getSearchOtherBureaus())) {
+            planLimitService.requireCrossBureau(host.getBureauId());
+        }
         tenantService.updateBureauSharing(host.getBureauId(), req);
         return ResponseEntity.ok(java.util.Map.of(
                 "message", "Sharing settings updated",

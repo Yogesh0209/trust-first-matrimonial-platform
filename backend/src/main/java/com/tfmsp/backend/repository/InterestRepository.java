@@ -25,4 +25,6 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
             Long senderProfileId, Long receiverProfileId, InterestStatus status);
 
     long countBySenderProfileIdAndCreatedAtAfter(Long senderProfileId, LocalDateTime after);
+    
+    List<Interest> findByStatusAndCreatedAtBefore(InterestStatus status, LocalDateTime before);
 }

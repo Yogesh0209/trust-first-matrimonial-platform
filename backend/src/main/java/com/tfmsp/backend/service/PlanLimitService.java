@@ -40,4 +40,18 @@ public class PlanLimitService {
     public Integer getMemberLimit(Long bureauId) {
         return getActivePlan(bureauId).getMemberLimit();
     }
+    
+    public void requireCrossBureau(Long bureauId) {
+        if (bureauId == null) return;
+        if (!getActivePlan(bureauId).isCrossBureauSearch()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "PLAN: cross-bureau search needs the Pro or Enterprise plan");
+        }
+    }
+
+    public void requireGovIdVerification(Long bureauId) {
+        if (bureauId == null) return;
+        if (!getActivePlan(bureauId).isGovIdVerification()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "PLAN: ID verification needs the Pro or Enterprise plan");
+        }
+    }
 }

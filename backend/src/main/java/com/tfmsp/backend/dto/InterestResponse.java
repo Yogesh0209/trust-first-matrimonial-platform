@@ -17,6 +17,7 @@ public class InterestResponse {
     private String photoUrl;
     private String city;
     private String trustBand;
+    private String note;
 
     public Long getId() {
         return id;
@@ -105,4 +106,12 @@ public class InterestResponse {
     public void setTrustBand(String trustBand) {
         this.trustBand = trustBand;
     }
+
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
+	}
 }
