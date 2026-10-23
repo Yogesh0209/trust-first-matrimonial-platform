@@ -14,4 +14,15 @@ public class InterestRequest {
     public void setReceiverProfileId(Long receiverProfileId) {
         this.receiverProfileId = receiverProfileId;
     }
+    
+    @jakarta.validation.constraints.Size(max = 200, message = "Note must be at most 200 characters") 
+    private String note;
+
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
+	}
 }

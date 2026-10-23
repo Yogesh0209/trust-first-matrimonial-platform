@@ -29,6 +29,9 @@ public class Interest {
 
     @Column(name = "responded_at")
     private LocalDateTime respondedAt;
+    
+    @Column(length = 200)
+    private String note;
 
     public Interest() {
     }
@@ -87,4 +90,8 @@ public class Interest {
     public void setRespondedAt(LocalDateTime respondedAt) {
         this.respondedAt = respondedAt;
     }
+    
+    public String getNote() { return note; }
+    
+    public void setNote(String note) { this.note = note; }
 }

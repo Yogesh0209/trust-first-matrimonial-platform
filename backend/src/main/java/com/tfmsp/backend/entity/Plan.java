@@ -26,6 +26,9 @@ public class Plan {
 
     @Column(nullable = false)
     private String status = "ACTIVE";
+    
+    @Column(name = "cross_bureau_search", nullable = false)
+    private boolean crossBureauSearch = false;
 
     public Plan() {
     }
@@ -85,4 +88,8 @@ public class Plan {
     public void setStatus(String status) {
         this.status = status;
     }
+    
+    public boolean isCrossBureauSearch() { return crossBureauSearch; }
+    
+    public void setCrossBureauSearch(boolean v) { this.crossBureauSearch = v; }
 }

@@ -55,9 +55,14 @@ public class InteractionService {
         this.notificationService = notificationService;
         this.profileAccessService = profileAccessService;
     }
-
+    
     @Transactional
     public InterestResponse sendInterest(Long senderUserId, Long receiverProfileId) {
+        return sendInterest(senderUserId, receiverProfileId, null);
+    }
+    
+    @Transactional
+    public InterestResponse sendInterest(Long senderUserId, Long receiverProfileId, String note) {
         Profile senderProfile = profileRepository.findByUserId(senderUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sender profile not found. Please complete profile first."));
 
@@ -82,7 +87,16 @@ public class InteractionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target member is not active");
         }
 
-        // Check if interest already exists
+        // Remove an old expired interest so the person can send again
+        interestRepository.findBySenderProfileIdAndReceiverProfileId(senderProfile.getId(), receiverProfileId)
+                .filter(i -> i.getStatus() == InterestStatus.EXPIRED)
+                .ifPresent(interestRepository::delete);
+        interestRepository.findBySenderProfileIdAndReceiverProfileId(receiverProfileId, senderProfile.getId())
+                .filter(i -> i.getStatus() == InterestStatus.EXPIRED)
+                .ifPresent(interestRepository::delete);
+        interestRepository.flush();
+        
+     // Check if interest already exists
         if (interestRepository.existsBySenderProfileIdAndReceiverProfileId(senderProfile.getId(), receiverProfileId) ||
             interestRepository.existsBySenderProfileIdAndReceiverProfileId(receiverProfileId, senderProfile.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "An interest already exists between these profiles");
@@ -99,6 +113,9 @@ public class InteractionService {
         }
 
         Interest interest = new Interest(senderProfile.getId(), receiverProfileId);
+        if (note != null && !note.isBlank()) {
+            interest.setNote(org.springframework.web.util.HtmlUtils.htmlEscape(note.trim()));
+        }
         Interest saved = interestRepository.save(interest);
 
         User senderUser = userRepository.findById(senderUserId).orElse(null);
@@ -123,6 +140,10 @@ public class InteractionService {
 
         if (interest.getStatus() != InterestStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Interest is not pending (current status: " + interest.getStatus() + ")");
+        }
+        
+        if (interest.getCreatedAt().isBefore(LocalDateTime.now().minusDays(14))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This interest has expired (older than 14 days)");
         }
 
         if ("ACCEPT".equalsIgnoreCase(action)) {
@@ -349,6 +370,7 @@ public class InteractionService {
         res.setStatus(interest.getStatus());
         res.setCreatedAt(interest.getCreatedAt());
         res.setRespondedAt(interest.getRespondedAt());
+        res.setNote(interest.getNote());
 
         if (senderUser != null) {
             res.setSenderName(senderUser.getFullName());
@@ -371,5 +393,17 @@ public class InteractionService {
                 || blockRepository.existsByBlockerProfileIdAndBlockedProfileId(profileB, profileA)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot interact with this profile");
         }
+    }
+    
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 3 * * *", zone = "Asia/Kolkata")
+    @Transactional
+    public int expireOldInterests() {
+        List<Interest> old = interestRepository.findByStatusAndCreatedAtBefore(
+                InterestStatus.PENDING, LocalDateTime.now().minusDays(14));
+        for (Interest i : old) {
+            i.setStatus(InterestStatus.EXPIRED);
+            interestRepository.save(i);
+        }
+        return old.size();
     }
 }

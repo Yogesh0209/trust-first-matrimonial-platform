@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.tfmsp.backend.dto.InterestResponse;
@@ -48,6 +49,8 @@ class InteractionServiceTest {
     private NotificationService notificationService;
     
     @Mock private ProfileAccessService profileAccessService;
+    
+    @MockitoBean private PlanLimitService planLimitService;
 
     @BeforeEach
     void setUp() {
