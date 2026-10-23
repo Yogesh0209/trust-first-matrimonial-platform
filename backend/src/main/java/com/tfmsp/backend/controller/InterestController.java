@@ -34,7 +34,7 @@ public class InterestController {
         if (auth == null || auth.getName() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
         }
-        User user = userRepository.findByEmail(auth.getName())
+        User user = userRepository.findById(Long.valueOf(auth.getName()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         return user.getId();
     }
@@ -44,7 +44,7 @@ public class InterestController {
             @Valid @RequestBody InterestRequest req,
             Authentication auth) {
         Long callerUserId = getAuthenticatedUserId(auth);
-        InterestResponse response = interactionService.sendInterest(callerUserId, req.getReceiverProfileId());
+        InterestResponse response = interactionService.sendInterest(callerUserId, req.getReceiverProfileId(), req.getNote());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

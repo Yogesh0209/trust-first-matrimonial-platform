@@ -28,6 +28,8 @@ import com.tfmsp.backend.dto.VerificationReviewRequest;
 import com.tfmsp.backend.enums.ReviewStatus;
 import com.tfmsp.backend.enums.VerificationType;
 import com.tfmsp.backend.exception.GlobalExceptionHandler;
+import com.tfmsp.backend.repository.UserRepository;
+import com.tfmsp.backend.service.PlanLimitService;
 import com.tfmsp.backend.service.VerificationService;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +37,8 @@ class VerificationControllerTest {
 
     private MockMvc candidateMockMvc;
     private MockMvc hostMockMvc;
+    @Mock private UserRepository userRepository;
+    @Mock private PlanLimitService planLimitService;
 
     @Mock
     private VerificationService verificationService;
@@ -43,7 +47,7 @@ class VerificationControllerTest {
 
     @BeforeEach
     void setUp() {
-        VerificationController candidateController = new VerificationController(verificationService);
+        VerificationController candidateController = new VerificationController(verificationService, userRepository, planLimitService);
         HostVerificationController hostController = new HostVerificationController(verificationService);
 
         candidateMockMvc = MockMvcBuilders.standaloneSetup(candidateController)

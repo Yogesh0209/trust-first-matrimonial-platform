@@ -23,9 +23,11 @@ import com.tfmsp.backend.entity.Bureau;
 import com.tfmsp.backend.entity.User;
 import com.tfmsp.backend.enums.Gender;
 import com.tfmsp.backend.enums.Role;
+import com.tfmsp.backend.repository.AuditLogRepository;
 import com.tfmsp.backend.repository.BureauRepository;
 import com.tfmsp.backend.repository.UserRepository;
 import com.tfmsp.backend.security.JwtService;
+import com.tfmsp.backend.repository.AuditLogRepository;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -42,11 +44,18 @@ class AuthServiceTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private PlanLimitService planLimitService;
+
     private AuthService authService;
 
+    @Mock
+    private AuditLogRepository auditLogRepository;
+    
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, bureauRepository, passwordEncoder, jwtService);
+        authService = new AuthService(userRepository, bureauRepository, passwordEncoder,
+                jwtService, planLimitService, auditLogRepository);
     }
 
     private RegisterRequest createValidRequest() {
@@ -86,7 +95,7 @@ class AuthServiceTest {
     @Test
     void register_invalidBureauCode_throwsBadRequest() {
         RegisterRequest req = createValidRequest();
-        when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.empty());
+        when(bureauRepository.findByBureauCodeForUpdate("BUR001")).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.register(req));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
@@ -100,7 +109,7 @@ class AuthServiceTest {
         inactiveBureau.setId(10L);
         inactiveBureau.setStatus("PENDING");
 
-        when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.of(inactiveBureau));
+        when(bureauRepository.findByBureauCodeForUpdate("BUR001")).thenReturn(Optional.of(inactiveBureau));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.register(req));
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
@@ -114,8 +123,9 @@ class AuthServiceTest {
         activeBureau.setId(10L);
         activeBureau.setStatus("ACTIVE");
 
-        when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.of(activeBureau));
-        when(userRepository.countByBureauId(10L)).thenReturn(0L);
+        when(bureauRepository.findByBureauCodeForUpdate("BUR001")).thenReturn(Optional.of(activeBureau));
+        when(planLimitService.getMemberLimit(10L)).thenReturn(50);
+        when(userRepository.countByBureauIdAndRole(10L, Role.END_USER)).thenReturn(0L);
         when(userRepository.existsByEmail("aarav@example.com")).thenReturn(false);
         when(userRepository.existsByPhone("9876543210")).thenReturn(false);
         when(passwordEncoder.encode("Password@123")).thenReturn("encodedPassword");
@@ -141,12 +151,13 @@ class AuthServiceTest {
         activeBureau.setId(10L);
         activeBureau.setStatus("ACTIVE");
 
-        when(bureauRepository.findByBureauCode("BUR001")).thenReturn(Optional.of(activeBureau));
-        when(userRepository.countByBureauId(10L)).thenReturn(500L);
+        when(bureauRepository.findByBureauCodeForUpdate("BUR001")).thenReturn(Optional.of(activeBureau));
+        when(planLimitService.getMemberLimit(10L)).thenReturn(50);
+        when(userRepository.countByBureauIdAndRole(10L, Role.END_USER)).thenReturn(50L);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.register(req));
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("capacity reached"));
+        assertTrue(ex.getReason().contains("limit reached"));
     }
 
     @Test
@@ -165,7 +176,7 @@ class AuthServiceTest {
 
         // 5th failed attempt should lock
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> authService.login(req));
-        assertEquals(HttpStatus.LOCKED, ex.getStatusCode());
+        assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
         assertTrue(user.isAccountLocked());
         assertEquals(5, user.getFailedLoginAttempts());
         assertNotNull(user.getLockedUntil());

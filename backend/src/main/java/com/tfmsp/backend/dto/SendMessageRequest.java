@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 public class SendMessageRequest {
 
     @NotBlank(message = "Message body cannot be empty")
-    @Size(max = 2000, message = "Message body cannot exceed 2000 characters")
+    @Size(min = 1, max = 1000, message = "Message must be 1 to 1000 characters")
     private String body;
 
     public String getBody() {

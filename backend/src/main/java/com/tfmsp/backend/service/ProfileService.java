@@ -16,6 +16,7 @@ import com.tfmsp.backend.dto.PrivacyUpdateRequest;
 import com.tfmsp.backend.dto.ProfilePhotoResponse;
 import com.tfmsp.backend.dto.ProfileRequest;
 import com.tfmsp.backend.dto.ProfileResponse;
+import com.tfmsp.backend.dto.SharingUpdateRequest;
 import com.tfmsp.backend.entity.Profile;
 import com.tfmsp.backend.entity.ProfilePhoto;
 import com.tfmsp.backend.entity.User;
@@ -24,6 +25,7 @@ import com.tfmsp.backend.enums.Visibility;
 import com.tfmsp.backend.repository.ProfilePhotoRepository;
 import com.tfmsp.backend.repository.ProfileRepository;
 import com.tfmsp.backend.repository.UserRepository;
+import com.tfmsp.backend.util.TextSanitizer;
 
 @Service
 public class ProfileService {
@@ -31,13 +33,16 @@ public class ProfileService {
     private final ProfileRepository profileRepository;
     private final ProfilePhotoRepository profilePhotoRepository;
     private final UserRepository userRepository;
+    private final ProfileAccessService profileAccessService;
 
     public ProfileService(ProfileRepository profileRepository,
             ProfilePhotoRepository profilePhotoRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ProfileAccessService profileAccessService) {
         this.profileRepository = profileRepository;
         this.profilePhotoRepository = profilePhotoRepository;
         this.userRepository = userRepository;
+        this.profileAccessService = profileAccessService;
     }
 
     @Transactional(readOnly = true)
@@ -57,21 +62,25 @@ public class ProfileService {
         Profile profile = profileRepository.findByUserId(userId).orElseGet(() -> {
             Profile newProfile = new Profile();
             newProfile.setUserId(userId);
-            newProfile.setGender(user.getRole() != null ? com.tfmsp.backend.enums.Gender.MALE
+            // Gender and date of birth come from registration
+            newProfile.setGender(user.getGender() != null
+                    ? user.getGender()
                     : com.tfmsp.backend.enums.Gender.OTHER);
-            newProfile.setDateOfBirth(LocalDate.now().minusYears(22)); // Default fallback until set
+            newProfile.setDateOfBirth(user.getDateOfBirth() != null
+                    ? user.getDateOfBirth()
+                    : LocalDate.now().minusYears(22));
             return newProfile;
         });
 
         profile.setMaritalStatus(request.getMaritalStatus());
-        profile.setReligion(request.getReligion());
-        profile.setMotherTongue(request.getMotherTongue());
-        profile.setCity(request.getCity());
         profile.setHeightCm(request.getHeightCm());
-        profile.setEducation(request.getEducation());
-        profile.setOccupation(request.getOccupation());
-        profile.setFamilyType(request.getFamilyType());
-        profile.setAbout(request.getAbout());
+        profile.setReligion(TextSanitizer.clean(request.getReligion()));
+        profile.setMotherTongue(TextSanitizer.clean(request.getMotherTongue()));
+        profile.setCity(TextSanitizer.clean(request.getCity()));
+        profile.setEducation(TextSanitizer.clean(request.getEducation()));
+        profile.setOccupation(TextSanitizer.clean(request.getOccupation()));
+        profile.setFamilyType(TextSanitizer.clean(request.getFamilyType()));
+        profile.setAbout(TextSanitizer.clean(request.getAbout()));
 
         Profile saved = profileRepository.save(profile);
 
@@ -91,6 +100,7 @@ public class ProfileService {
     public ProfileResponse getPublicProfile(Long profileId, Long viewerUserId) {
         Profile profile = profileRepository.findById(profileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found"));
+        profileAccessService.assertCanView(viewerUserId, profile);
 
         boolean isOwner = profile.getUserId().equals(viewerUserId);
 
@@ -182,6 +192,18 @@ public class ProfileService {
                     profilePhotoRepository.save(existing);
                 });
     }
+    
+    @Transactional
+    public void updateSharing(Long userId, SharingUpdateRequest request) {
+        Profile profile = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Profile not found. Please complete your profile."));
+
+        profile.setShareConsent(request.getConsent());
+        profile.setShareConsentAt(LocalDateTime.now());
+        profileRepository.save(profile);
+    }
+    
 
     /**
      * completed required fields / total required fields * 100

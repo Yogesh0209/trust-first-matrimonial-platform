@@ -86,10 +86,10 @@ public class TenantService {
         userRepository.save(hostUser);
 
         // Assign default or chosen subscription plan
-        String planName = (req.getPlanName() != null && !req.getPlanName().isBlank()) ? req.getPlanName() : "Free";
+        String planName = (req.getPlanName() != null && !req.getPlanName().isBlank()) ? req.getPlanName() : "Basic";
         Plan plan = planRepository.findByNameIgnoreCase(planName)
                 .orElseGet(() -> planRepository.findAll().stream().findFirst()
-                        .orElseGet(() -> planRepository.save(new Plan("Free", java.math.BigDecimal.ZERO, 100, false))));
+                        .orElseGet(() -> planRepository.save(new Plan("Basic", java.math.BigDecimal.ZERO, 100, false))));
 
         Subscription subscription = new Subscription(
                 savedBureau.getId(),
@@ -135,12 +135,31 @@ public class TenantService {
     }
 
     @Transactional
-    public BureauResponse updateBureauStatus(Long bureauId, BureauStatus newStatus, Long actorAdminId) {
+    public BureauResponse updateBureauStatus(Long bureauId, BureauStatus newStatus,
+            String reason, Long actorAdminId) {
+
+        if (newStatus == BureauStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A bureau cannot be moved back to PENDING");
+        }
+        if (newStatus == BureauStatus.SUSPENDED && (reason == null || reason.isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A reason is required to suspend a bureau");
+        }
+
         Bureau bureau = bureauRepository.findById(bureauId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bureau not found"));
 
         bureau.setStatus(newStatus.name());
         Bureau saved = bureauRepository.save(bureau);
+
+        // Approving a bureau also activates its Host account(s)
+        if (newStatus == BureauStatus.ACTIVE) {
+            for (User host : userRepository.findByBureauIdAndRole(bureauId, Role.HOST)) {
+                host.setStatus(UserStatus.ACTIVE);
+                userRepository.save(host);
+            }
+        }
 
         auditLogRepository.save(new AuditLog(
                 actorAdminId,
@@ -148,6 +167,7 @@ public class TenantService {
                 "BUREAU",
                 bureauId,
                 "Status updated to: " + newStatus.name()
+                        + (reason != null && !reason.isBlank() ? " | Reason: " + reason.trim() : "")
         ));
 
         long memberCount = userRepository.countByBureauId(bureau.getId());
@@ -158,6 +178,11 @@ public class TenantService {
                 .orElse("None");
 
         return toBureauResponse(saved, memberCount, planName);
+    }
+
+    // Kept so older callers and tests that pass no reason still work
+    public BureauResponse updateBureauStatus(Long bureauId, BureauStatus newStatus, Long actorAdminId) {
+        return updateBureauStatus(bureauId, newStatus, null, actorAdminId);
     }
 
     public List<MemberSummaryResponse> getHostMembers(Long bureauId) {
@@ -193,20 +218,46 @@ public class TenantService {
     }
 
     @Transactional
-    public MemberSummaryResponse updateMemberStatus(Long bureauId, Long memberUserId, UserStatus newStatus, Long actorHostId) {
+    public MemberSummaryResponse updateMemberStatus(Long bureauId, Long memberUserId,
+            UserStatus newStatus, String reason, Long actorHostId) {
+
         User user = userRepository.findById(memberUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Member not found"));
 
+        // 1. Tenant isolation
         if (!bureauId.equals(user.getBureauId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: member does not belong to this bureau");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Access denied: member does not belong to this bureau");
+        }
+
+        // 2. A Host can only manage End Users
+        if (user.getRole() != Role.END_USER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Access denied: only candidate accounts can be managed");
+        }
+
+        // 3. Allowed target statuses for a Host
+        if (newStatus != UserStatus.ACTIVE && newStatus != UserStatus.PAUSED
+                && newStatus != UserStatus.SUSPENDED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Hosts can only set ACTIVE, PAUSED or SUSPENDED");
+        }
+
+        // 4. A reason is required for suspend, pause, and reinstating a suspended member
+        boolean reinstating = newStatus == UserStatus.ACTIVE && user.getStatus() == UserStatus.SUSPENDED;
+        if ((newStatus == UserStatus.SUSPENDED || newStatus == UserStatus.PAUSED || reinstating)
+                && (reason == null || reason.isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A reason is required for this action");
+        }
+
+        // 5. Activation needs verified contacts (FRD section 1.5)
+        if (newStatus == UserStatus.ACTIVE && (!user.isEmailVerified() || !user.isPhoneVerified())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Email and phone must be verified before activation");
         }
 
         user.setStatus(newStatus);
-        if (newStatus == UserStatus.SUSPENDED || newStatus == UserStatus.DELETED) {
-            user.setBlocked(true);
-        } else if (newStatus == UserStatus.ACTIVE) {
-            user.setBlocked(false);
-        }
+        user.setBlocked(newStatus == UserStatus.SUSPENDED);
         User saved = userRepository.save(user);
 
         auditLogRepository.save(new AuditLog(
@@ -215,6 +266,7 @@ public class TenantService {
                 "USER",
                 memberUserId,
                 "Member status updated to: " + newStatus.name()
+                        + (reason != null && !reason.isBlank() ? " | Reason: " + reason.trim() : "")
         ));
 
         MemberSummaryResponse res = new MemberSummaryResponse();
@@ -239,6 +291,12 @@ public class TenantService {
         });
 
         return res;
+    }
+
+    // Kept so older callers and tests that pass no reason still work
+    public MemberSummaryResponse updateMemberStatus(Long bureauId, Long memberUserId,
+            UserStatus newStatus, Long actorHostId) {
+        return updateMemberStatus(bureauId, memberUserId, newStatus, null, actorHostId);
     }
 
     public SubscriptionResponse getBureauSubscription(Long bureauId) {
@@ -267,11 +325,41 @@ public class TenantService {
     }
 
     @Transactional
-    public SubscriptionResponse upgradeSubscription(Long bureauId, Long newPlanId, Long actorUserId) {
-        Plan newPlan = planRepository.findById(newPlanId)
+    // Host only REQUESTS an upgrade. Nothing changes until the Super Admin assigns it.
+    public void requestUpgrade(Long bureauId, Long planId, Long hostUserId) {
+        Plan plan = planRepository.findById(planId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan not found"));
 
-        // Cancel previous active subscriptions
+        auditLogRepository.save(new AuditLog(
+                hostUserId,
+                "SUBSCRIPTION_UPGRADE_REQUESTED",
+                "BUREAU",
+                bureauId,
+                "Requested plan: " + plan.getName()
+        ));
+    }
+
+    // Super Admin assigns / renews / upgrades a plan for a bureau
+    
+    @Transactional
+    public SubscriptionResponse assignSubscription(Long bureauId, Long planId, int months, Long adminId) {
+        bureauRepository.findById(bureauId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bureau not found"));
+        return doAssign(bureauId, planId, months, adminId, "ASSIGN_SUBSCRIPTION");
+    }
+
+    // Kept so older callers and tests still work (1 month)
+    @Transactional
+    public SubscriptionResponse upgradeSubscription(Long bureauId, Long newPlanId, Long actorUserId) {
+        return doAssign(bureauId, newPlanId, 1, actorUserId, "UPGRADE_SUBSCRIPTION");
+    }
+
+    private SubscriptionResponse doAssign(Long bureauId, Long planId, int months,
+            Long actorId, String auditAction) {
+        Plan newPlan = planRepository.findById(planId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan not found"));
+
+        // Cancel the previous active subscription
         subscriptionRepository.findFirstByBureauIdAndStatusOrderByEndDateDesc(bureauId, SubscriptionStatus.ACTIVE)
                 .ifPresent(s -> {
                     s.setStatus(SubscriptionStatus.CANCELLED);
@@ -282,17 +370,17 @@ public class TenantService {
                 bureauId,
                 newPlan.getId(),
                 LocalDate.now(),
-                LocalDate.now().plusMonths(1),
+                LocalDate.now().plusMonths(months),
                 SubscriptionStatus.ACTIVE
         );
         Subscription savedSub = subscriptionRepository.save(newSub);
 
         auditLogRepository.save(new AuditLog(
-                actorUserId,
-                "UPGRADE_SUBSCRIPTION",
+                actorId,
+                auditAction,
                 "SUBSCRIPTION",
                 savedSub.getId(),
-                "Upgraded to plan: " + newPlan.getName()
+                "Plan: " + newPlan.getName() + " for " + months + " month(s)"
         ));
 
         long currentCount = userRepository.countByBureauId(bureauId);
@@ -344,5 +432,61 @@ public class TenantService {
         res.setActivePlan(planName);
         res.setCreatedAt(bureau.getCreatedAt());
         return res;
+    }
+    
+    @Transactional
+    public Plan createPlan(PlanRequest req, Long adminId) {
+        String name = req.getName().trim();
+        if (planRepository.findByNameIgnoreCase(name).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A plan with this name already exists");
+        }
+        Plan plan = new Plan(name, req.getPricePerMonth(), req.getMemberLimit(), req.isGovIdVerification());
+        if (req.getStatus() != null) {
+            plan.setStatus(req.getStatus());
+        }
+        Plan saved = planRepository.save(plan);
+
+        auditLogRepository.save(new AuditLog(adminId, "CREATE_PLAN", "PLAN", saved.getId(),
+                "Plan created: " + saved.getName()));
+        return saved;
+    }
+
+    @Transactional
+    public Plan updatePlan(Long planId, PlanRequest req, Long adminId) {
+        Plan plan = planRepository.findById(planId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan not found"));
+
+        String name = req.getName().trim();
+        planRepository.findByNameIgnoreCase(name).ifPresent(existing -> {
+            if (!existing.getId().equals(planId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "A plan with this name already exists");
+            }
+        });
+
+        plan.setName(name);
+        plan.setPricePerMonth(req.getPricePerMonth());
+        plan.setMemberLimit(req.getMemberLimit());
+        plan.setGovIdVerification(req.isGovIdVerification());
+        if (req.getStatus() != null) {
+            plan.setStatus(req.getStatus());
+        }
+        Plan saved = planRepository.save(plan);
+
+        auditLogRepository.save(new AuditLog(adminId, "UPDATE_PLAN", "PLAN", saved.getId(),
+                "Plan updated: " + saved.getName() + " (limit: "
+                        + (saved.getMemberLimit() == null ? "unlimited" : saved.getMemberLimit()) + ")"));
+        return saved;
+    }
+    
+    @Transactional
+    public void updateBureauSharing(Long bureauId, BureauSharingRequest req) {
+        Bureau bureau = bureauRepository.findById(bureauId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Bureau not found"));
+        bureau.setShareMembers(req.getShareMembers());
+        bureau.setSearchOtherBureaus(req.getSearchOtherBureaus());
+        if (req.getShowBureauName() != null) {
+            bureau.setShowBureauName(req.getShowBureauName());
+        }
+        bureauRepository.save(bureau);
     }
 }

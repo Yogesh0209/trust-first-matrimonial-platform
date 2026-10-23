@@ -28,6 +28,8 @@ public class SearchService {
     private final BureauRepository bureauRepository;
     private final ShortlistRepository shortlistRepository;
     private final ProfileService profileService;
+    private final BlockRepository blockRepository;
+    private final ProfileAccessService profileAccessService;
 
     public SearchService(
             ProfileRepository profileRepository,
@@ -35,13 +37,17 @@ public class SearchService {
             UserRepository userRepository,
             BureauRepository bureauRepository,
             ShortlistRepository shortlistRepository,
-            ProfileService profileService) {
+            ProfileService profileService,
+            BlockRepository blockRepository,
+            ProfileAccessService profileAccessService) {
         this.profileRepository = profileRepository;
         this.profilePhotoRepository = profilePhotoRepository;
         this.userRepository = userRepository;
         this.bureauRepository = bureauRepository;
         this.shortlistRepository = shortlistRepository;
         this.profileService = profileService;
+        this.blockRepository = blockRepository;
+        this.profileAccessService = profileAccessService;
     }
 
     public List<SearchResultResponse> searchHomeBureau(Long callerUserId, SearchFilterCriteria criteria) {
@@ -92,9 +98,12 @@ public class SearchService {
         Map<Long, Bureau> bureauMap = new HashMap<>();
         for (Bureau pb : partnerBureaus) {
             bureauMap.put(pb.getId(), pb);
+            // Only members who gave cross-bureau sharing consent (FRD SRC-05)
             List<User> members = userRepository.findByBureauIdAndRole(pb.getId(), Role.END_USER)
                     .stream()
                     .filter(u -> u.getStatus() == UserStatus.ACTIVE && !u.isBlocked())
+                    .filter(u -> profileRepository.findByUserId(u.getId())
+                            .map(Profile::isShareConsent).orElse(false))
                     .collect(Collectors.toList());
             candidateUsers.addAll(members);
         }
@@ -113,6 +122,7 @@ public class SearchService {
 
         Profile targetProfile = profileRepository.findById(targetProfileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target profile not found"));
+        profileAccessService.assertCanView(callerUserId, targetProfile);
 
         if (targetProfile.getVisibility() != Visibility.VISIBLE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot shortlist a hidden profile");
@@ -184,6 +194,13 @@ public class SearchService {
 
         Map<Long, User> userMap = candidateUsers.stream().collect(Collectors.toMap(User::getId, u -> u));
         Long callerProfileId = callerProfileOpt.map(Profile::getId).orElse(null);
+        Set<Long> hiddenProfileIds = new HashSet<>();
+        if (callerProfileId != null) {
+            for (Block b : blockRepository.findByBlockerProfileIdOrBlockedProfileId(callerProfileId, callerProfileId)) {
+                hiddenProfileIds.add(b.getBlockerProfileId().equals(callerProfileId)
+                        ? b.getBlockedProfileId() : b.getBlockerProfileId());
+            }
+        }
 
         // Determine default target gender if caller has a gender and criteria does not specify
         Gender targetGender = (criteria != null && criteria.getGender() != null)
@@ -199,6 +216,7 @@ public class SearchService {
         for (Profile p : profiles) {
             User user = userMap.get(p.getUserId());
             if (user == null) continue;
+            if (hiddenProfileIds.contains(p.getId())) continue;
 
             // 1. Gender filter
             if (targetGender != null && p.getGender() != targetGender) {

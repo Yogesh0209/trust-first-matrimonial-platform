@@ -8,7 +8,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.data.domain.PageRequest;
+import java.util.stream.Collectors;
 
+import com.tfmsp.backend.dto.AuditLogResponse;
+import com.tfmsp.backend.dto.StillLookingRequest;
 import com.tfmsp.backend.entity.AuditLog;
 import com.tfmsp.backend.entity.Profile;
 import com.tfmsp.backend.entity.User;
@@ -59,6 +63,7 @@ public class FreshnessService {
         ));
     }
 
+    @Scheduled(cron = "${app.freshness.cron:0 0 2 * * *}", zone = "Asia/Kolkata")
     @Transactional
     public int sweepInactiveProfiles() {
         LocalDateTime cutoff90Days = LocalDateTime.now().minusDays(90);
@@ -84,6 +89,72 @@ public class FreshnessService {
             }
         }
 
+        System.out.println("Freshness sweep finished. Profiles hidden: " + hiddenCount);
+        auditLogRepository.save(new AuditLog(
+                null,
+                "FRESHNESS_SWEEP",
+                "SYSTEM",
+                null,
+                "Freshness sweep finished: " + hiddenCount + " profile(s) hidden"
+        ));
         return hiddenCount;
+    }
+    
+    @Transactional
+    public String respondStillLooking(Long userId, StillLookingRequest.Choice choice) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        // only normal members can change their own status; pending/suspended/etc. cannot
+        if (user.getStatus() != UserStatus.ACTIVE && user.getStatus() != UserStatus.PAUSED) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Your account status does not allow this action");
+        }
+
+        String action;
+        switch (choice) {
+            case ACTIVE -> {
+                user.setStatus(UserStatus.ACTIVE);
+                user.setLastActiveAt(LocalDateTime.now());
+                profileRepository.findByUserId(userId).ifPresent(p -> {
+                    p.setVisibility(Visibility.VISIBLE);
+                    profileRepository.save(p);
+                });
+                action = "STILL_LOOKING";
+            }
+            case PAUSED -> {
+                user.setStatus(UserStatus.PAUSED);
+                action = "PROFILE_PAUSED";
+            }
+            default -> {
+                user.setStatus(UserStatus.ARCHIVED);
+                action = "ENGAGED_OR_MARRIED";
+            }
+        }
+        userRepository.save(user);
+
+        auditLogRepository.save(new AuditLog(userId, action, "USER", userId,
+                "Member answered 'Still looking?' with " + choice));
+
+        return user.getStatus().name();
+    }
+    
+    @Transactional(readOnly = true)
+    public List<AuditLogResponse> getRecentRuns(int limit) {
+        int size = Math.max(1, Math.min(limit, 100));
+        return auditLogRepository.findByActionOrderByCreatedAtDesc("FRESHNESS_SWEEP", PageRequest.of(0, size))
+                .stream()
+                .map(log -> {
+                    AuditLogResponse res = new AuditLogResponse();
+                    res.setId(log.getId());
+                    res.setActorUserId(log.getActorUserId());
+                    res.setAction(log.getAction());
+                    res.setEntityType(log.getEntityType());
+                    res.setEntityId(log.getEntityId());
+                    res.setDetails(log.getDetails());
+                    res.setCreatedAt(log.getCreatedAt());
+                    return res;
+                })
+                .collect(Collectors.toList());
     }
 }

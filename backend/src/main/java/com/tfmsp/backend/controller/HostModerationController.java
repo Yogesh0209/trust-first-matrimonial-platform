@@ -33,7 +33,7 @@ public class HostModerationController {
         if (auth == null || auth.getName() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
         }
-        User user = userRepository.findByEmail(auth.getName())
+        User user = userRepository.findById(Long.valueOf(auth.getName()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
         if (user.getRole() != Role.HOST && user.getRole() != Role.SUPER_ADMIN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: Host role required");
@@ -56,6 +56,7 @@ public class HostModerationController {
             @Valid @RequestBody ReportResolveRequest req,
             Authentication auth) {
         User host = verifyHost(auth);
-        return ResponseEntity.ok(moderationService.resolveReport(id, req.getStatus(), host.getId()));
+        Long scope = host.getRole() == Role.HOST ? host.getBureauId() : null;
+        return ResponseEntity.ok(moderationService.resolveReport(id, req.getStatus(), host.getId(), scope));
     }
 }

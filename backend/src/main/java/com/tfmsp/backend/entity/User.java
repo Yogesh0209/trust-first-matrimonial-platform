@@ -45,6 +45,13 @@ public class User {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private com.tfmsp.backend.enums.UserStatus status = com.tfmsp.backend.enums.UserStatus.PENDING;
+	
+	@Enumerated(EnumType.STRING)
+	@Column(name = "gender")
+	private com.tfmsp.backend.enums.Gender gender;
+
+	@Column(name = "date_of_birth")
+	private java.time.LocalDate dateOfBirth;
 
 	@Column(name = "last_active_at")
 	private LocalDateTime lastActiveAt;
@@ -185,6 +192,22 @@ public class User {
 
 	public boolean isAccountLocked() {
 		return lockedUntil != null && lockedUntil.isAfter(LocalDateTime.now());
+	}
+	
+	public com.tfmsp.backend.enums.Gender getGender() {
+		return gender;
+	}
+
+	public void setGender(com.tfmsp.backend.enums.Gender gender) {
+		this.gender = gender;
+	}
+
+	public java.time.LocalDate getDateOfBirth() {
+		return dateOfBirth;
+	}
+
+	public void setDateOfBirth(java.time.LocalDate dateOfBirth) {
+		this.dateOfBirth = dateOfBirth;
 	}
 
 }

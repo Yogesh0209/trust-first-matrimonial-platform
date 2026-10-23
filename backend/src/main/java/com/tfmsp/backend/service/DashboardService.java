@@ -3,6 +3,7 @@ package com.tfmsp.backend.service;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import com.tfmsp.backend.dto.AdminDashboardResponse;
@@ -85,7 +86,7 @@ public class DashboardService {
                 .findFirstByBureauIdAndStatusOrderByEndDateDesc(bureauId, SubscriptionStatus.ACTIVE)
                 .orElse(null);
 
-        String planName = "Free";
+        String planName = "Basic";
         Integer limit = 100;
         if (activeSub != null) {
             Plan plan = planRepository.findById(activeSub.getPlanId()).orElse(null);
@@ -156,6 +157,13 @@ public class DashboardService {
         return auditLogRepository.findAll().stream()
                 .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
                 .limit(limit)
+                .map(this::toAuditResponse)
+                .collect(Collectors.toList());
+    }
+    
+    public List<AuditLogResponse> getHostAuditLogs(Long bureauId, int limit) {
+        int size = Math.max(1, Math.min(limit, 200));
+        return auditLogRepository.findByBureau(bureauId, PageRequest.of(0, size)).stream()
                 .map(this::toAuditResponse)
                 .collect(Collectors.toList());
     }

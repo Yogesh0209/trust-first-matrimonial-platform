@@ -26,6 +26,9 @@ public class InteractionService {
     private final ProfilePhotoRepository profilePhotoRepository;
     private final UserRepository userRepository;
     private final ProfileService profileService;
+    private final BlockRepository blockRepository;
+    private final NotificationService notificationService;
+    private final ProfileAccessService profileAccessService;
 
     // Anti-scam pattern: phone numbers, URLs, suspicious financial solicitation
     private static final Pattern PHONE_PATTERN = Pattern.compile("(\\+?\\d{1,4}[-\\s]?)?\\(?\\d{3}\\)?[-\\s]?\\d{3}[-\\s]?\\d{4}|\\b\\d{10}\\b");
@@ -38,17 +41,28 @@ public class InteractionService {
             ProfileRepository profileRepository,
             ProfilePhotoRepository profilePhotoRepository,
             UserRepository userRepository,
-            ProfileService profileService) {
+            ProfileService profileService,
+            BlockRepository blockRepository,
+            NotificationService notificationService,
+            ProfileAccessService profileAccessService) {
         this.interestRepository = interestRepository;
         this.messageRepository = messageRepository;
         this.profileRepository = profileRepository;
         this.profilePhotoRepository = profilePhotoRepository;
         this.userRepository = userRepository;
         this.profileService = profileService;
+        this.blockRepository = blockRepository;
+        this.notificationService = notificationService;
+        this.profileAccessService = profileAccessService;
     }
-
+    
     @Transactional
     public InterestResponse sendInterest(Long senderUserId, Long receiverProfileId) {
+        return sendInterest(senderUserId, receiverProfileId, null);
+    }
+    
+    @Transactional
+    public InterestResponse sendInterest(Long senderUserId, Long receiverProfileId, String note) {
         Profile senderProfile = profileRepository.findByUserId(senderUserId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sender profile not found. Please complete profile first."));
 
@@ -59,6 +73,9 @@ public class InteractionService {
         Profile receiverProfile = profileRepository.findById(receiverProfileId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target profile not found"));
 
+        assertNotBlocked(senderProfile.getId(), receiverProfileId);
+        profileAccessService.assertCanView(senderUserId, receiverProfile);
+        
         if (receiverProfile.getVisibility() != Visibility.VISIBLE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target profile is not currently visible");
         }
@@ -70,7 +87,16 @@ public class InteractionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target member is not active");
         }
 
-        // Check if interest already exists
+        // Remove an old expired interest so the person can send again
+        interestRepository.findBySenderProfileIdAndReceiverProfileId(senderProfile.getId(), receiverProfileId)
+                .filter(i -> i.getStatus() == InterestStatus.EXPIRED)
+                .ifPresent(interestRepository::delete);
+        interestRepository.findBySenderProfileIdAndReceiverProfileId(receiverProfileId, senderProfile.getId())
+                .filter(i -> i.getStatus() == InterestStatus.EXPIRED)
+                .ifPresent(interestRepository::delete);
+        interestRepository.flush();
+        
+     // Check if interest already exists
         if (interestRepository.existsBySenderProfileIdAndReceiverProfileId(senderProfile.getId(), receiverProfileId) ||
             interestRepository.existsBySenderProfileIdAndReceiverProfileId(receiverProfileId, senderProfile.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "An interest already exists between these profiles");
@@ -87,9 +113,16 @@ public class InteractionService {
         }
 
         Interest interest = new Interest(senderProfile.getId(), receiverProfileId);
+        if (note != null && !note.isBlank()) {
+            interest.setNote(org.springframework.web.util.HtmlUtils.htmlEscape(note.trim()));
+        }
         Interest saved = interestRepository.save(interest);
 
         User senderUser = userRepository.findById(senderUserId).orElse(null);
+        
+        notificationService.notify(receiverUser.getId(), "INTEREST_RECEIVED",
+                "You received a new interest" + (senderUser != null ? " from " + senderUser.getFullName() : ""));
+        
         return toInterestResponse(saved, senderUser, receiverUser, receiverProfile);
     }
 
@@ -108,6 +141,10 @@ public class InteractionService {
         if (interest.getStatus() != InterestStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Interest is not pending (current status: " + interest.getStatus() + ")");
         }
+        
+        if (interest.getCreatedAt().isBefore(LocalDateTime.now().minusDays(14))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This interest has expired (older than 14 days)");
+        }
 
         if ("ACCEPT".equalsIgnoreCase(action)) {
             interest.setStatus(InterestStatus.ACCEPTED);
@@ -123,6 +160,14 @@ public class InteractionService {
         Profile senderProfile = profileRepository.findById(saved.getSenderProfileId()).orElse(null);
         User senderUser = (senderProfile != null) ? userRepository.findById(senderProfile.getUserId()).orElse(null) : null;
         User receiverUser = userRepository.findById(receiverUserId).orElse(null);
+        
+        if (senderUser != null) {
+            boolean accepted = saved.getStatus() == InterestStatus.ACCEPTED;
+            notificationService.notify(senderUser.getId(),
+                    accepted ? "INTEREST_ACCEPTED" : "INTEREST_DECLINED",
+                    "Your interest was " + (accepted ? "accepted" : "declined")
+                            + (receiverUser != null ? " by " + receiverUser.getFullName() : ""));
+        }
 
         return toInterestResponse(saved, senderUser, receiverUser, senderProfile);
     }
@@ -278,6 +323,10 @@ public class InteractionService {
             !interest.getReceiverProfileId().equals(callerProfile.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: you are not a participant in this conversation");
         }
+        
+        Long otherProfileId = interest.getSenderProfileId().equals(callerProfile.getId())
+                ? interest.getReceiverProfileId() : interest.getSenderProfileId();
+        assertNotBlocked(callerProfile.getId(), otherProfileId);
 
         if (interest.getStatus() != InterestStatus.ACCEPTED) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Messaging is only enabled after interest is ACCEPTED");
@@ -321,6 +370,7 @@ public class InteractionService {
         res.setStatus(interest.getStatus());
         res.setCreatedAt(interest.getCreatedAt());
         res.setRespondedAt(interest.getRespondedAt());
+        res.setNote(interest.getNote());
 
         if (senderUser != null) {
             res.setSenderName(senderUser.getFullName());
@@ -336,5 +386,24 @@ public class InteractionService {
         }
 
         return res;
+    }
+    
+    private void assertNotBlocked(Long profileA, Long profileB) {
+        if (blockRepository.existsByBlockerProfileIdAndBlockedProfileId(profileA, profileB)
+                || blockRepository.existsByBlockerProfileIdAndBlockedProfileId(profileB, profileA)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You cannot interact with this profile");
+        }
+    }
+    
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 3 * * *", zone = "Asia/Kolkata")
+    @Transactional
+    public int expireOldInterests() {
+        List<Interest> old = interestRepository.findByStatusAndCreatedAtBefore(
+                InterestStatus.PENDING, LocalDateTime.now().minusDays(14));
+        for (Interest i : old) {
+            i.setStatus(InterestStatus.EXPIRED);
+            interestRepository.save(i);
+        }
+        return old.size();
     }
 }
