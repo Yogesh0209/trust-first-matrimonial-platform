@@ -1,10 +1,35 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
+import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
+import ProtectedRoute from './routes/ProtectedRoute'
+import { useAuth } from './context/AuthContext'
+import { homeFor } from './utils/roles'
+
+function RootRedirect() {
+  const { token, role } = useAuth()
+  return <Navigate to={token ? homeFor(role) : '/login'} replace />
+}
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<RootRedirect />} />
+      <Route path="/status" element={<Home />} />
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/app"
+        element={<ProtectedRoute roles={['END_USER']}><Dashboard /></ProtectedRoute>}
+      />
+      <Route
+        path="/host"
+        element={<ProtectedRoute roles={['HOST']}><Dashboard /></ProtectedRoute>}
+      />
+      <Route
+        path="/admin"
+        element={<ProtectedRoute roles={['SUPER_ADMIN']}><Dashboard /></ProtectedRoute>}
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
