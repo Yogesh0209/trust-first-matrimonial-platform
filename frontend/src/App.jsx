@@ -9,6 +9,7 @@ import Register from './pages/Register'
 import VerifyOtp from './pages/VerifyOtp'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import HostRegister from './pages/HostRegister'
 
 function RootRedirect() {
   const { token, role } = useAuth()
@@ -25,6 +26,7 @@ export default function App() {
       <Route path="/verify" element={<VerifyOtp />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/host-register" element={<HostRegister />} />
       <Route
         path="/app"
         element={<ProtectedRoute roles={['END_USER']}><Dashboard /></ProtectedRoute>}

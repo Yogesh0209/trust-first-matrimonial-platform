@@ -73,7 +73,7 @@ export default function Register() {
 
                 <label className="label">Password</label>
                 <PasswordInput required placeholder="Minimum 8 characters" value={form.password}
-                    onChange={set('password')} className="mb-1"/>
+                    onChange={set('password')} className="mb-1" />
                 <p className="mb-3 text-xs text-muted">
                     Use uppercase, lowercase, a digit and one of @ $ ! % * ? &amp;
                 </p>
@@ -97,8 +97,9 @@ export default function Register() {
                 <label className="label">Bureau code</label>
                 <input required className="input mb-1" placeholder="e.g. TB001"
                     value={form.bureauCode} onChange={set('bureauCode')} />
-                <p className="mb-4 text-xs text-muted">Ask your marriage bureau for this code.</p>
-
+                <p className="mt-3 text-center text-xs font-semibold text-brand">
+                    <Link to="/host-register">Are you a marriage bureau? Register as a Host</Link>
+                </p>
                 <label className="mb-5 flex items-center gap-2 text-xs">
                     <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)}
                         className="accent-brand" />

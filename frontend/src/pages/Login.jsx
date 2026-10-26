@@ -77,7 +77,7 @@ export default function Login() {
           <Link to="/register" className="font-semibold text-brand">Register</Link>
         </p>
         <p className="mt-3 text-center text-xs font-semibold text-brand">
-          Are you a marriage bureau? Register as a Host
+          <Link to="/host-register">Are you a marriage bureau? Register as a Host</Link>
         </p>
       </form>
     </AuthLayout>
