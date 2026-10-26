@@ -7,6 +7,8 @@ import { useAuth } from './context/AuthContext'
 import { homeFor } from './utils/roles'
 import Register from './pages/Register'
 import VerifyOtp from './pages/VerifyOtp'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 
 function RootRedirect() {
   const { token, role } = useAuth()
@@ -20,7 +22,9 @@ export default function App() {
       <Route path="/status" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/verify" element={<VerifyOtp />} /> 
+      <Route path="/verify" element={<VerifyOtp />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route
         path="/app"
         element={<ProtectedRoute roles={['END_USER']}><Dashboard /></ProtectedRoute>}
