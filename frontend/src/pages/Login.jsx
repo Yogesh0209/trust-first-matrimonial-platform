@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { homeFor } from '../utils/roles'
 import AuthLayout from '../components/AuthLayout'
+import PasswordInput from '../components/PasswordInput'
 
 export default function Login() {
   const { login } = useAuth()
@@ -53,13 +54,12 @@ export default function Login() {
         />
 
         <label className="label">Password</label>
-        <input
-          type="password"
+        <PasswordInput
           required
           placeholder="Your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="input mb-2"
+          className="mb-2"
         />
 
         <div className="mb-5 text-right">

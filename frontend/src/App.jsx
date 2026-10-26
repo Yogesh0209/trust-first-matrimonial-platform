@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './routes/ProtectedRoute'
 import { useAuth } from './context/AuthContext'
 import { homeFor } from './utils/roles'
+import Register from './pages/Register'
+import VerifyOtp from './pages/VerifyOtp'
 
 function RootRedirect() {
   const { token, role } = useAuth()
@@ -17,6 +19,8 @@ export default function App() {
       <Route path="/" element={<RootRedirect />} />
       <Route path="/status" element={<Home />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/verify" element={<VerifyOtp />} /> 
       <Route
         path="/app"
         element={<ProtectedRoute roles={['END_USER']}><Dashboard /></ProtectedRoute>}
