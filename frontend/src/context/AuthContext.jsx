@@ -6,25 +6,30 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [role, setRole] = useState(localStorage.getItem('role'))
+  const [email, setEmail] = useState(localStorage.getItem('email'))
 
-  const login = async (email, password) => {
-    const res = await api.post('/api/auth/login', { email, password })
+  const login = async (emailInput, password) => {
+    const res = await api.post('/api/auth/login', { email: emailInput, password })
     localStorage.setItem('token', res.data.token)
     localStorage.setItem('role', res.data.role)
+    localStorage.setItem('email', emailInput)
     setToken(res.data.token)
     setRole(res.data.role)
+    setEmail(emailInput)
     return res.data.role
   }
 
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('role')
+    localStorage.removeItem('email')
     setToken(null)
     setRole(null)
+    setEmail(null)
   }
 
   return (
-    <AuthContext.Provider value={{ token, role, login, logout }}>
+    <AuthContext.Provider value={{ token, role, email, login, logout }}>
       {children}
     </AuthContext.Provider>
   )
