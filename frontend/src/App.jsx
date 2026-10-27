@@ -13,6 +13,7 @@ import SidebarLayout from './components/SidebarLayout'
 import { useAuth } from './context/AuthContext'
 import { homeFor } from './utils/roles'
 import Profile from './pages/Profile'
+import Photos from './pages/Photos'
 
 const hostItems = [
   { to: '/host', label: 'Dashboard', end: true },
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="/app/plans" element={<ComingSoon title="Plans" />} />
         <Route path="/app/verification" element={<ComingSoon title="Verification" />} />
         <Route path="/app/profile" element={<Profile />} />
+        <Route path="/app/photos" element={<Photos />} />
       </Route>
 
       {/* Host */}

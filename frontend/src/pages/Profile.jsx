@@ -99,7 +99,10 @@ export default function Profile() {
           Your profile is{' '}
           <span className="font-semibold text-ink">{info?.completeness ?? 0}%</span> complete.
         </p>
-        <Link to="/app/search" className="btn-primary mt-6 block text-center">
+        <Link to="/app/photos" className="btn-outline mt-6 block text-center">
+          Add photos
+        </Link>
+        <Link to="/app/search" className="btn-primary mt-3 block text-center">
           Go to search
         </Link>
         <button
@@ -126,9 +129,8 @@ export default function Profile() {
           return (
             <div key={label} className="flex flex-col items-center gap-1">
               <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                  active || done ? 'bg-brand text-white' : 'bg-sand text-muted'
-                }`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${active || done ? 'bg-brand text-white' : 'bg-sand text-muted'
+                  }`}
               >
                 {done ? '✓' : n}
               </span>
@@ -147,8 +149,11 @@ export default function Profile() {
         </p>
 
         {info && (
-          <p className="mb-4 rounded-lg bg-brand-soft px-3 py-2 text-xs text-brand">
-            {info.fullName} · profile {info.completeness}% complete
+          <p className="mb-4 flex items-center justify-between rounded-lg bg-brand-soft px-3 py-2 text-xs text-brand">
+            <span>
+              {info.fullName} · profile {info.completeness}% complete
+            </span>
+            <Link to="/app/photos" className="font-semibold underline">Manage photos</Link>
           </p>
         )}
         {!info && step === 1 && (
