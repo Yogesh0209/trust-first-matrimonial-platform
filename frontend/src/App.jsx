@@ -14,6 +14,7 @@ import { useAuth } from './context/AuthContext'
 import { homeFor } from './utils/roles'
 import Profile from './pages/Profile'
 import Photos from './pages/Photos'
+import Verification from './pages/Verification'
 
 const hostItems = [
   { to: '/host', label: 'Dashboard', end: true },
@@ -59,7 +60,7 @@ export default function App() {
         <Route path="/app/search" element={<ComingSoon title="Search" />} />
         <Route path="/app/interests" element={<ComingSoon title="Interests" />} />
         <Route path="/app/plans" element={<ComingSoon title="Plans" />} />
-        <Route path="/app/verification" element={<ComingSoon title="Verification" />} />
+        <Route path="/app/verification" element={<Verification />} />
         <Route path="/app/profile" element={<Profile />} />
         <Route path="/app/photos" element={<Photos />} />
       </Route>
