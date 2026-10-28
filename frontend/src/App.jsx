@@ -15,6 +15,7 @@ import { homeFor } from './utils/roles'
 import Profile from './pages/Profile'
 import Photos from './pages/Photos'
 import Verification from './pages/Verification'
+import Search from './pages/Search'
 
 const hostItems = [
   { to: '/host', label: 'Dashboard', end: true },
@@ -57,7 +58,7 @@ export default function App() {
         }
       >
         <Route path="/app" element={<Navigate to="/app/search" replace />} />
-        <Route path="/app/search" element={<ComingSoon title="Search" />} />
+        <Route path="/app/search" element={<Search />} />
         <Route path="/app/interests" element={<ComingSoon title="Interests" />} />
         <Route path="/app/plans" element={<ComingSoon title="Plans" />} />
         <Route path="/app/verification" element={<Verification />} />
