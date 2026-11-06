@@ -181,4 +181,11 @@ public class VerificationService {
                 v.getReviewedAt()
         );
     }
+    
+    @Transactional(readOnly = true)
+    public List<VerificationResponse> getMyVerifications(Long userId) {
+        Profile profile = getProfileByUserId(userId);
+        return verificationRepository.findByProfileIdOrderBySubmittedAtDesc(profile.getId())
+                .stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
 }

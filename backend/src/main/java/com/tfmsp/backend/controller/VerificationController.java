@@ -46,4 +46,10 @@ public class VerificationController {
         userRepository.findById(userId).ifPresent(u -> planLimitService.requireGovIdVerification(u.getBureauId()));
         return ResponseEntity.status(HttpStatus.CREATED).body(verificationService.submitGovId(userId, request));
     }
+    
+    @GetMapping("/me")
+    public ResponseEntity<java.util.List<VerificationResponse>> myVerifications(Principal principal) {
+        Long userId = Long.valueOf(principal.getName());
+        return ResponseEntity.ok(verificationService.getMyVerifications(userId));
+    }
 }
