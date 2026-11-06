@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/axios'
 import { getErrorMessage } from '../utils/errors'
+import { resolveMediaUrl } from '../utils/media'
 
 export default function Photos() {
   const [photos, setPhotos] = useState([])
@@ -95,7 +96,7 @@ export default function Photos() {
           {photos.map((p) => (
             <div key={p.id} className="card overflow-hidden">
               <div className="relative">
-                <img src={p.photoUrl} alt="Profile" className="h-36 w-full bg-sand object-cover" />
+                <img src={resolveMediaUrl(p.photoUrl)} alt="Profile" className="h-36 w-full bg-sand object-cover" />
                 {p.primary && (
                   <span className="absolute left-2 top-2 rounded-full bg-brand px-2 py-0.5 text-[11px] font-semibold text-white">
                     Primary

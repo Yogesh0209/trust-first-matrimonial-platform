@@ -1,82 +1,139 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Logo from './Logo'
-import { useEffect } from 'react'
+import NotificationBell from './NotificationBell'
+import { useEffect, useState } from 'react'
 import api from '../api/axios'
 import { useAuth } from '../context/AuthContext'
 import { displayName } from '../utils/roles'
 
 const links = [
-    { to: '/app/search', label: 'Search' },
-    { to: '/app/interests', label: 'Interests' },
-    { to: '/app/plans', label: 'Plans' },
-    { to: '/app/verification', label: 'Verification' },
+  { to: '/app/search', label: 'Search' },
+  { to: '/app/interests', label: 'Interests' },
+  { to: '/app/chat', label: 'Messages' },
+  { to: '/app/plans', label: 'Plans' },
+  { to: '/app/verification', label: 'Verification' },
 ]
 
 export default function UserLayout() {
-    const { email, logout } = useAuth()
-    const navigate = useNavigate()
-    const name = displayName(email)
-    useEffect(() => {
-        api.get('/api/profiles/me').catch((err) => {
-            if (err.response?.status === 404) navigate('/app/profile', { replace: true })
-        })
-    }, [navigate])
+  const { email, logout } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const name = displayName(email)
+  const [isInactive, setIsInactive] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
-    const handleLogout = () => {
-        logout()
-        navigate('/login', { replace: true })
+  useEffect(() => {
+    api.get('/api/profiles/me')
+      .then((res) => {
+        if (res.data?.visibility === 'HIDDEN') {
+          setIsInactive(true)
+        }
+      })
+      .catch((err) => {
+        if (err.response?.status === 404) {
+          const allowedWithoutProfile = ['/app/profile', '/app/settings', '/app/plans']
+          if (!allowedWithoutProfile.includes(location.pathname)) {
+            navigate('/app/profile', { replace: true })
+          }
+        }
+      })
+  }, [navigate, location.pathname])
+
+  const handleConfirmActive = async () => {
+    setConfirming(true)
+    try {
+      await api.post('/api/profiles/me/confirm-active')
+      setIsInactive(false)
+    } catch {
+      // keep banner if error occurs
+    } finally {
+      setConfirming(false)
     }
+  }
 
-    const desktopClass = ({ isActive }) =>
-        `flex items-center border-b-2 text-sm ${isActive
-            ? 'border-brand font-semibold text-brand'
-            : 'border-transparent text-muted hover:text-ink'
-        }`
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
-    const mobileClass = ({ isActive }) =>
-        `whitespace-nowrap rounded-full px-3 py-1 text-xs ${isActive ? 'bg-brand font-semibold text-white' : 'bg-sand text-muted'
-        }`
+  const desktopClass = ({ isActive }) =>
+    `flex items-center border-b-2 text-sm ${isActive
+      ? 'border-brand font-semibold text-brand'
+      : 'border-transparent text-muted hover:text-ink'
+    }`
 
-    return (
-        <div className="min-h-screen">
-            <header className="border-b border-line bg-white">
-                <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-                    <div className="flex h-full items-center gap-8">
-                        <Logo />
-                        <nav className="hidden h-full gap-6 md:flex">
-                            {links.map((l) => (
-                                <NavLink key={l.to} to={l.to} className={desktopClass}>
-                                    {l.label}
-                                </NavLink>
-                            ))}
-                        </nav>
-                    </div>
+  const mobileClass = ({ isActive }) =>
+    `whitespace-nowrap rounded-full px-3 py-1 text-xs ${isActive ? 'bg-brand font-semibold text-white' : 'bg-sand text-muted'
+    }`
 
-                    <div className="flex items-center gap-3 text-sm">
-                        <Link to="/app/profile" className="flex items-center gap-3">
-                            <span className="hidden sm:inline">{name}</span>
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand">
-                                {name.charAt(0)}
-                            </span>
-                        </Link>
-                        <button onClick={handleLogout} className="text-xs font-semibold text-brand">
-                            Log out
-                        </button>
-                    </div>
-                </div>
+  return (
+    <div className="min-h-screen">
+      <header className="border-b border-line bg-white">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+          <div className="flex h-full items-center gap-8">
+            <Logo />
+            <nav className="hidden h-full gap-6 md:flex">
+              {links.map((l) => (
+                <NavLink key={l.to} to={l.to} className={desktopClass}>
+                  {l.label}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
 
-                <nav className="flex gap-2 overflow-x-auto border-t border-line px-4 py-2 md:hidden">
-                    {links.map((l) => (
-                        <NavLink key={l.to} to={l.to} className={mobileClass}>
-                            {l.label}
-                        </NavLink>
-                    ))}
-                </nav>
-            </header>
-
-            <main className="mx-auto max-w-6xl px-4 py-8">
-                <Outlet />
-            </main>
+          <div className="flex items-center gap-3 text-sm">
+            <NotificationBell />
+            <Link to="/app/profile" className="flex items-center gap-2">
+              <span className="hidden sm:inline">{name}</span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand">
+                {name.charAt(0)}
+              </span>
+            </Link>
+            <Link to="/app/settings" className="text-xs font-semibold text-muted hover:text-ink">
+              Settings
+            </Link>
+            <button onClick={handleLogout} className="text-xs font-semibold text-brand">
+              Log out
+            </button>
+          </div>
         </div>
-    )
+
+        <nav className="flex gap-2 overflow-x-auto border-t border-line px-4 py-2 md:hidden">
+          {links.map((l) => (
+            <NavLink key={l.to} to={l.to} className={mobileClass}>
+              {l.label}
+            </NavLink>
+          ))}
+        </nav>
+      </header>
+
+      {isInactive && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-warn text-xs font-bold text-white">
+                !
+              </span>
+              <span className="font-medium">
+                Your profile is hidden from search because you were inactive for 30 days.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleConfirmActive}
+              disabled={confirming}
+              className="btn-primary shrink-0"
+              style={{ width: 'auto', paddingBlock: 6, paddingInline: 16, fontSize: 13 }}
+            >
+              {confirming ? 'Reactivating...' : 'Confirm I am active'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <Outlet />
+      </main>
+    </div>
+  )
 }

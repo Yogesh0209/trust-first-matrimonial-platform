@@ -102,7 +102,7 @@ export default function Search() {
             ['2', 'Level 2 and above'],
             ['3', 'Level 3 only'],
           ].map(([value, label]) => (
-            <label key={label} className="flex items-center gap-2">
+            <label key={label} className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="trust" className="accent-brand"
                 checked={draft.minTrustLevel === value}
                 onChange={() => setDraft({ ...draft, minTrustLevel: value })} />
@@ -137,11 +137,24 @@ export default function Search() {
 
         <p className="mb-3 text-xs text-muted">{loading ? 'Searching...' : `${total} profiles found`}</p>
 
+        {/* Empty Search State (Design 21) */}
         {!loading && results.length === 0 && !error && (
-          <div className="card p-10 text-center">
-            <h2 className="text-xl font-bold">No profiles found</h2>
-            <p className="mt-1 text-sm text-muted">Try fewer filters or a different city.</p>
-            <button onClick={resetFilters} className="btn-outline mt-4">Reset filters</button>
+          <div className="card p-12 text-center flex flex-col items-center justify-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-brand">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-ink">No profiles found</h2>
+            <p className="mt-1 text-sm text-muted">Try changing or removing some filters.</p>
+            <button
+              onClick={resetFilters}
+              className="btn-primary mt-6"
+              style={{ width: 'auto', paddingInline: 24 }}
+            >
+              Reset filters
+            </button>
           </div>
         )}
 
