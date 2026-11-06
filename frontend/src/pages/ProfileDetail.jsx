@@ -5,6 +5,7 @@ import TrustBadge from '../components/TrustBadge'
 import InterestModal from '../components/InterestModal'
 import ReportModal from '../components/ReportModal'
 import { getErrorMessage } from '../utils/errors'
+import { resolveMediaUrl } from '../utils/media'
 
 const MARITAL = { NEVER_MARRIED: 'Never married', DIVORCED: 'Divorced', WIDOWED: 'Widowed' }
 
@@ -114,7 +115,7 @@ export default function ProfileDetail() {
       <div>
         <div className="aspect-[3/4] overflow-hidden rounded-2xl bg-brand-soft">
           {mainPhoto ? (
-            <img src={mainPhoto} alt={profile.fullName} className="h-full w-full object-cover" />
+            <img src={resolveMediaUrl(mainPhoto)} alt={profile.fullName} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full items-end justify-center">
               <div className="h-40 w-40 rounded-t-full bg-[#dcc8cd]" />
@@ -128,7 +129,7 @@ export default function ProfileDetail() {
                 className={`h-20 overflow-hidden rounded-xl border-2 ${
                   i === photoIdx ? 'border-brand' : 'border-transparent'
                 }`}>
-                <img src={p.photoUrl} alt="" className="h-full w-full object-cover" />
+                <img src={resolveMediaUrl(p.photoUrl)} alt="" className="h-full w-full object-cover" />
               </button>
             ))}
           </div>

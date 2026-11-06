@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/axios'
 import { getErrorMessage } from '../utils/errors'
+import { checkImageFile, uploadImage } from '../utils/media'
 
 const DOC_TYPES = ['Aadhaar', 'PAN', 'Passport', 'Voter ID', 'Driving licence']
+const ACCEPT = 'image/jpeg,image/png,image/webp'
 
 function StatusBadge({ item }) {
   if (!item) return null
@@ -23,13 +25,10 @@ export default function Verification() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [selfieUrl, setSelfieUrl] = useState('')
-  const [idForm, setIdForm] = useState({
-    documentType: 'Aadhaar',
-    fileUrl: '',
-    fileUrlBack: '',
-    maskedReference: '',
-  })
+  const [selfieFile, setSelfieFile] = useState(null)
+  const [idFront, setIdFront] = useState(null)
+  const [idBack, setIdBack] = useState(null)
+  const [idForm, setIdForm] = useState({ documentType: 'Aadhaar', maskedReference: '' })
 
   const load = async () => {
     try {
@@ -53,10 +52,12 @@ export default function Verification() {
   const latest = (type) => items.find((i) => i.type === type)
   const canSubmit = (item) => !item || item.status === 'REJECTED'
 
-  const submit = async (url, body, after) => {
+  // upload the images first (buildBody), then send the verification request
+  const submit = async (url, buildBody, after) => {
     setError('')
     setBusy(true)
     try {
+      const body = await buildBody()
       await api.post(url, body)
       after()
       await load()
@@ -67,21 +68,56 @@ export default function Verification() {
     }
   }
 
+  const pickFile = (setter) => (e) => {
+    const file = e.target.files?.[0] || null
+    if (file) {
+      const msg = checkImageFile(file)
+      if (msg) {
+        setError(msg)
+        e.target.value = ''
+        setter(null)
+        return
+      }
+    }
+    setError('')
+    setter(file)
+  }
+
   const submitSelfie = (e) => {
     e.preventDefault()
-    submit('/api/verification/selfie', { fileUrl: selfieUrl.trim() }, () => setSelfieUrl(''))
+    if (!selfieFile) {
+      setError('Please choose a selfie photo.')
+      return
+    }
+    submit(
+      '/api/verification/selfie',
+      async () => ({ fileUrl: await uploadImage(selfieFile, 'document') }),
+      () => setSelfieFile(null)
+    )
   }
 
   const submitId = (e) => {
     e.preventDefault()
-    const body = {
-      documentType: idForm.documentType,
-      fileUrl: idForm.fileUrl.trim(),
-      fileUrlBack: idForm.fileUrlBack.trim(),
-      maskedReference: idForm.maskedReference.trim(),
+    if (!idFront) {
+      setError('Please choose the front image of your ID.')
+      return
     }
-    submit('/api/verification/id', body, () =>
-      setIdForm({ documentType: 'Aadhaar', fileUrl: '', fileUrlBack: '', maskedReference: '' })
+    submit(
+      '/api/verification/id',
+      async () => {
+        const body = {
+          documentType: idForm.documentType,
+          maskedReference: idForm.maskedReference.trim(),
+          fileUrl: await uploadImage(idFront, 'document'),
+        }
+        if (idBack) body.fileUrlBack = await uploadImage(idBack, 'document')
+        return body
+      },
+      () => {
+        setIdFront(null)
+        setIdBack(null)
+        setIdForm({ documentType: 'Aadhaar', maskedReference: '' })
+      }
     )
   }
 
@@ -136,18 +172,18 @@ export default function Verification() {
               <StatusBadge item={selfie} />
             </div>
             <p className="mt-1 text-xs text-muted">
-              Paste a link to a clear selfie. We match it with your profile photos. Available on all plans.
+              Upload a clear selfie (JPG, PNG or WEBP, max 5 MB). We match it with your profile photos. Available on all plans.
             </p>
             {selfie?.status === 'REJECTED' && selfie.rejectReason && (
               <p className="mt-2 text-xs text-red-600">Reason: {selfie.rejectReason}</p>
             )}
             {canSubmit(selfie) && (
               <form onSubmit={submitSelfie} className="mt-4 flex flex-col gap-3 sm:flex-row">
-                <input required type="url" className="input" placeholder="Selfie image link (https://...)"
-                  value={selfieUrl} onChange={(e) => setSelfieUrl(e.target.value)} />
+                <input required type="file" accept={ACCEPT} capture="user" className="input"
+                  onChange={pickFile(setSelfieFile)} />
                 <button type="submit" disabled={busy} className="btn-primary"
                   style={{ width: 'auto', paddingInline: 24 }}>
-                  Submit selfie
+                  {busy ? 'Uploading...' : 'Submit selfie'}
                 </button>
               </form>
             )}
@@ -184,19 +220,19 @@ export default function Verification() {
                     value={idForm.maskedReference} onChange={setId('maskedReference')} />
                 </div>
                 <div>
-                  <label className="label">ID front (image link)</label>
-                  <input required type="url" className="input" placeholder="https://..."
-                    value={idForm.fileUrl} onChange={setId('fileUrl')} />
+                  <label className="label">ID front (image)</label>
+                  <input required type="file" accept={ACCEPT} className="input"
+                    onChange={pickFile(setIdFront)} />
                 </div>
                 <div>
-                  <label className="label">ID back (image link, optional)</label>
-                  <input type="url" className="input" placeholder="https://..."
-                    value={idForm.fileUrlBack} onChange={setId('fileUrlBack')} />
+                  <label className="label">ID back (image, optional)</label>
+                  <input type="file" accept={ACCEPT} className="input"
+                    onChange={pickFile(setIdBack)} />
                 </div>
                 <div className="flex items-center gap-4 sm:col-span-2">
                   <button type="submit" disabled={busy} className="btn-primary"
                     style={{ width: 'auto', paddingInline: 24 }}>
-                    Upload ID
+                    {busy ? 'Uploading...' : 'Upload ID'}
                   </button>
                   <Link to="/app/plans" className="text-sm font-semibold text-brand">Upgrade to Pro</Link>
                 </div>

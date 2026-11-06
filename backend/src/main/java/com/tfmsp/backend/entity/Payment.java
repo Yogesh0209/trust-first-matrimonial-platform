@@ -15,8 +15,16 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "subscription_id", nullable = false)
+    @Column(name = "subscription_id")
     private Long subscriptionId;
+
+    @Column(name = "bureau_id")
+    private Long bureauId;
+
+    @Column(name = "plan_id")
+    private Long planId;
+
+    private Integer months;
 
     @Column(nullable = false)
     private BigDecimal amount;
@@ -40,75 +48,46 @@ public class Payment {
     public Payment() {
     }
 
-    public Payment(Long subscriptionId, BigDecimal amount, String gatewayOrderId) {
-        this.subscriptionId = subscriptionId;
+    public Payment(Long bureauId, Long planId, Integer months, BigDecimal amount, String gatewayOrderId) {
+        this.bureauId = bureauId;
+        this.planId = planId;
+        this.months = months;
         this.amount = amount;
         this.gatewayOrderId = gatewayOrderId;
         this.status = PaymentStatus.CREATED;
         this.createdAt = LocalDateTime.now();
     }
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Long getSubscriptionId() { return subscriptionId; }
+    public void setSubscriptionId(Long subscriptionId) { this.subscriptionId = subscriptionId; }
 
-    public Long getSubscriptionId() {
-        return subscriptionId;
-    }
+    public Long getBureauId() { return bureauId; }
+    public void setBureauId(Long bureauId) { this.bureauId = bureauId; }
 
-    public void setSubscriptionId(Long subscriptionId) {
-        this.subscriptionId = subscriptionId;
-    }
+    public Long getPlanId() { return planId; }
+    public void setPlanId(Long planId) { this.planId = planId; }
 
-    public BigDecimal getAmount() {
-        return amount;
-    }
+    public Integer getMonths() { return months; }
+    public void setMonths(Integer months) { this.months = months; }
 
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
 
-    public String getGatewayOrderId() {
-        return gatewayOrderId;
-    }
+    public String getGatewayOrderId() { return gatewayOrderId; }
+    public void setGatewayOrderId(String gatewayOrderId) { this.gatewayOrderId = gatewayOrderId; }
 
-    public void setGatewayOrderId(String gatewayOrderId) {
-        this.gatewayOrderId = gatewayOrderId;
-    }
+    public String getGatewayPaymentId() { return gatewayPaymentId; }
+    public void setGatewayPaymentId(String gatewayPaymentId) { this.gatewayPaymentId = gatewayPaymentId; }
 
-    public String getGatewayPaymentId() {
-        return gatewayPaymentId;
-    }
+    public PaymentStatus getStatus() { return status; }
+    public void setStatus(PaymentStatus status) { this.status = status; }
 
-    public void setGatewayPaymentId(String gatewayPaymentId) {
-        this.gatewayPaymentId = gatewayPaymentId;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public PaymentStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(PaymentStatus status) {
-        this.status = status;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getPaidAt() {
-        return paidAt;
-    }
-
-    public void setPaidAt(LocalDateTime paidAt) {
-        this.paidAt = paidAt;
-    }
+    public LocalDateTime getPaidAt() { return paidAt; }
+    public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
 }

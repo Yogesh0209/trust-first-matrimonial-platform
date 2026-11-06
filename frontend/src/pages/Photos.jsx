@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../api/axios'
 import { getErrorMessage } from '../utils/errors'
-import { resolveMediaUrl } from '../utils/media'
+import { checkImageFile, resolveMediaUrl, uploadImage } from '../utils/media'
 
 export default function Photos() {
   const [photos, setPhotos] = useState([])
   const [hasProfile, setHasProfile] = useState(true)
   const [loading, setLoading] = useState(true)
-  const [url, setUrl] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -41,11 +40,18 @@ export default function Photos() {
     }
   }
 
-  const handleAdd = (e) => {
-    e.preventDefault()
+  const handleFile = (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow choosing the same file again
+    if (!file) return
+    const msg = checkImageFile(file)
+    if (msg) {
+      setError(msg)
+      return
+    }
     run(async () => {
-      await api.post('/api/profiles/me/photos', { photoUrl: url.trim() })
-      setUrl('')
+      const url = await uploadImage(file, 'photo')
+      await api.post('/api/profiles/me/photos', { photoUrl: url })
     })
   }
 
@@ -64,30 +70,37 @@ export default function Photos() {
     )
   }
 
+  const full = photos.length >= 6
+
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-3xl font-bold">Photos</h1>
       <p className="mb-6 text-sm text-muted">
-        Add up to 6 photos. The primary photo is shown first in search results.
+        Add up to 6 photos (JPG, PNG or WEBP, max 5 MB each). The primary photo is shown first in search results.
       </p>
 
       {error && (
         <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
       )}
 
-      <form onSubmit={handleAdd} className="card mb-6 flex flex-col gap-3 p-4 sm:flex-row">
-        <input
-          required
-          type="url"
-          className="input"
-          placeholder="Paste an image link, e.g. https://example.com/photo.jpg"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
-        <button type="submit" disabled={busy} className="btn-primary" style={{ width: 'auto', paddingInline: 24 }}>
-          Add photo
-        </button>
-      </form>
+      <div className="card mb-6 flex items-center justify-between gap-3 p-4">
+        <p className="text-sm text-muted">
+          {full ? 'You have reached the 6 photo limit.' : 'Choose a photo from your computer.'}
+        </p>
+        <label
+          className="btn-primary cursor-pointer text-center"
+          style={{ width: 'auto', paddingInline: 24, opacity: busy || full ? 0.6 : 1, pointerEvents: busy || full ? 'none' : 'auto' }}
+        >
+          {busy ? 'Uploading...' : 'Upload photo'}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            disabled={busy || full}
+            onChange={handleFile}
+          />
+        </label>
+      </div>
 
       {photos.length === 0 ? (
         <div className="card p-8 text-center text-sm text-muted">No photos yet.</div>

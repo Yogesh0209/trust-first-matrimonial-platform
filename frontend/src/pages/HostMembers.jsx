@@ -4,7 +4,7 @@ import api from '../api/axios'
 import TrustBadge from '../components/TrustBadge'
 import { getErrorMessage } from '../utils/errors'
 import { timeAgo } from '../utils/time'
-import { resolveMediaUrl } from '../utils/media'
+import SecureImage from '../components/SecureImage'
 
 function StatusPill({ status }) {
   const styles = {
@@ -202,22 +202,20 @@ export default function HostMembers() {
         <button
           type="button"
           onClick={() => setSearchParams({ tab: 'members' })}
-          className={`border-b-2 pb-2 text-sm font-semibold transition ${
-            activeTab === 'members'
+          className={`border-b-2 pb-2 text-sm font-semibold transition ${activeTab === 'members'
               ? 'border-brand text-brand'
               : 'border-transparent text-muted hover:text-ink'
-          }`}
+            }`}
         >
           All members ({members.length})
         </button>
         <button
           type="button"
           onClick={() => setSearchParams({ tab: 'verifications' })}
-          className={`flex items-center gap-2 border-b-2 pb-2 text-sm font-semibold transition ${
-            activeTab === 'verifications'
+          className={`flex items-center gap-2 border-b-2 pb-2 text-sm font-semibold transition ${activeTab === 'verifications'
               ? 'border-brand text-brand'
               : 'border-transparent text-muted hover:text-ink'
-          }`}
+            }`}
         >
           Pending verification
           {verifications.length > 0 && (
@@ -406,9 +404,8 @@ export default function HostMembers() {
                         <tr
                           key={v.id}
                           onClick={() => setSelectedVer(v)}
-                          className={`cursor-pointer transition ${
-                            isSelected ? 'bg-brand-soft/40 font-medium' : 'hover:bg-surface/50'
-                          }`}
+                          className={`cursor-pointer transition ${isSelected ? 'bg-brand-soft/40 font-medium' : 'hover:bg-surface/50'
+                            }`}
                         >
                           <td className="px-5 py-3.5 text-ink">
                             {v.fullName || `Profile #${v.profileId}`}
@@ -458,18 +455,13 @@ export default function HostMembers() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="text-center">
                     <div className="aspect-square w-full rounded-xl border border-line bg-surface overflow-hidden flex items-center justify-center">
-                      {selectedVer.fileUrl && !failedImgs[selectedVer.fileUrl] ? (
-                        <img
-                          src={resolveMediaUrl(selectedVer.fileUrl)}
-                          alt="Submitted verification"
-                          onError={() =>
-                            setFailedImgs((prev) => ({ ...prev, [selectedVer.fileUrl]: true }))
-                          }
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-xs text-muted">No photo</span>
-                      )}
+                      <SecureImage
+                        key={`${selectedVer.id}-front`}
+                        src={selectedVer.fileUrl}
+                        alt="Submitted verification"
+                        className="h-full w-full object-cover"
+                        fallback={<span className="text-xs text-muted">No photo</span>}
+                      />
                     </div>
                     <span className="mt-1.5 block text-xs font-medium text-muted">
                       {selectedVer.type === 'GOV_ID' ? 'ID Front' : 'Live selfie'}
@@ -478,18 +470,13 @@ export default function HostMembers() {
 
                   <div className="text-center">
                     <div className="aspect-square w-full rounded-xl border border-line bg-surface overflow-hidden flex items-center justify-center">
-                      {selectedVer.fileUrlBack && !failedImgs[selectedVer.fileUrlBack] ? (
-                        <img
-                          src={resolveMediaUrl(selectedVer.fileUrlBack)}
-                          alt="ID Back"
-                          onError={() =>
-                            setFailedImgs((prev) => ({ ...prev, [selectedVer.fileUrlBack]: true }))
-                          }
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-xs text-muted">Profile photo / Back</span>
-                      )}
+                      <SecureImage
+                        key={`${selectedVer.id}-back`}
+                        src={selectedVer.fileUrlBack}
+                        alt="ID Back"
+                        className="h-full w-full object-cover"
+                        fallback={<span className="text-xs text-muted">Profile photo / Back</span>}
+                      />
                     </div>
                     <span className="mt-1.5 block text-xs font-medium text-muted">
                       {selectedVer.type === 'GOV_ID' ? 'ID Back' : 'Profile photo'}
@@ -746,8 +733,8 @@ export default function HostMembers() {
                   {changingStatus
                     ? 'Updating...'
                     : statusDialog.targetStatus === 'SUSPENDED'
-                    ? 'Remove'
-                    : 'Confirm'}
+                      ? 'Remove'
+                      : 'Confirm'}
                 </button>
               </div>
             </form>

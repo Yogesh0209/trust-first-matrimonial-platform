@@ -1,18 +1,36 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../api/axios'
+import { useAuth } from '../context/AuthContext'
 import { getErrorMessage } from '../utils/errors'
 import { timeAgo } from '../utils/time'
+import { loadRazorpay } from '../utils/razorpay'
 
-const FALLBACK_UPGRADE_PLANS = [
-  { id: 1, name: 'Basic', pricePerMonth: 0, memberLimit: 50 },
-  { id: 2, name: 'Pro', pricePerMonth: 499, memberLimit: 500 },
-  { id: 3, name: 'Enterprise', pricePerMonth: 999, memberLimit: null },
-]
+const MONTH_OPTIONS = [1, 3, 6, 12]
+
+const STATUS_STYLE = {
+  PAID: ['Paid', 'bg-green-50 text-ok'],
+  FAILED: ['Failed', 'bg-red-50 text-red-600'],
+  CREATED: ['Not completed', 'bg-amber-50 text-warn'],
+}
+
+// axios errors come from the server; anything else already has a readable message
+const messageOf = (err) => (err.response ? getErrorMessage(err) : err.message || 'Something went wrong')
+
+const formatDate = (value) =>
+  value
+    ? new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '-'
 
 export default function HostBilling() {
+  const { email } = useAuth()
+
   const [subscription, setSubscription] = useState(null)
   const [loadingSub, setLoadingSub] = useState(true)
   const [subError, setSubError] = useState('')
+
+  // Billing history
+  const [payments, setPayments] = useState([])
+  const [loadingPayments, setLoadingPayments] = useState(true)
 
   // Sharing toggles
   const [sharing, setSharing] = useState({
@@ -28,28 +46,135 @@ export default function HostBilling() {
   const [auditLogs, setAuditLogs] = useState([])
   const [loadingLogs, setLoadingLogs] = useState(true)
 
-  // Upgrade modal
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
-  const [selectedPlanId, setSelectedPlanId] = useState(2)
-  const [requestingUpgrade, setRequestingUpgrade] = useState(false)
-  const [upgradeNotice, setUpgradeNotice] = useState('')
-  const [upgradeError, setUpgradeError] = useState('')
+  // Pay modal
+  const [showPayModal, setShowPayModal] = useState(false)
+  const [plans, setPlans] = useState([])
+  const [plansError, setPlansError] = useState('')
+  const [selectedPlanId, setSelectedPlanId] = useState(null)
+  const [months, setMonths] = useState(1)
+  const [paying, setPaying] = useState(false)
+  const [payError, setPayError] = useState('')
+  const [paySuccess, setPaySuccess] = useState('')
+  const paidRef = useRef(false)
 
-  useEffect(() => {
-    // 1. Subscription details
-    api
+  const loadSubscription = useCallback(() => {
+    return api
       .get('/api/host/subscription')
-      .then((res) => setSubscription(res.data))
+      .then((res) => {
+        setSubscription(res.data)
+        setSubError('')
+      })
       .catch((err) => setSubError(getErrorMessage(err)))
       .finally(() => setLoadingSub(false))
+  }, [])
 
-    // 2. Audit logs
+  const loadPayments = useCallback(() => {
+    return api
+      .get('/api/host/payments')
+      .then((res) => setPayments(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setPayments([]))
+      .finally(() => setLoadingPayments(false))
+  }, [])
+
+  useEffect(() => {
+    loadSubscription()
+    loadPayments()
+
     api
       .get('/api/host/audit-logs?limit=50')
       .then((res) => setAuditLogs(Array.isArray(res.data) ? res.data : []))
       .catch(() => setAuditLogs([]))
       .finally(() => setLoadingLogs(false))
-  }, [])
+
+    api
+      .get('/api/plans')
+      .then((res) => setPlans(Array.isArray(res.data) ? res.data : []))
+      .catch((err) => setPlansError(getErrorMessage(err)))
+  }, [loadSubscription, loadPayments])
+
+  // only plans with a price can be paid for
+  const paidPlans = plans.filter((p) => Number(p.pricePerMonth) > 0)
+  const chosenId = selectedPlanId ?? paidPlans[0]?.id ?? null
+  const chosenPlan = paidPlans.find((p) => p.id === chosenId)
+  const total = chosenPlan ? Number(chosenPlan.pricePerMonth) * months : 0
+
+  const openPayModal = () => {
+    setPayError('')
+    setPaySuccess('')
+    paidRef.current = false
+    setShowPayModal(true)
+  }
+
+  const closePayModal = () => {
+    if (paying) return
+    setShowPayModal(false)
+  }
+
+  const handlePay = async () => {
+    if (!chosenPlan) return
+    setPaying(true)
+    setPayError('')
+    setPaySuccess('')
+    paidRef.current = false
+
+    let order
+    try {
+      order = (await api.post('/api/host/payments/create-order', { planId: chosenPlan.id, months })).data
+      const Razorpay = await loadRazorpay()
+
+      const checkout = new Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'TrustMatch',
+        description: `${order.planName} plan, ${order.months} month(s)`,
+        order_id: order.orderId,
+        prefill: { email },
+        theme: { color: '#6b1d2e' },
+        handler: async (response) => {
+          // Razorpay says it is paid; the backend checks the signature before activating the plan
+          paidRef.current = true
+          try {
+            await api.post('/api/host/payments/verify', {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            })
+            setPaySuccess(`Payment successful. Your ${order.planName} plan is now active.`)
+            await Promise.all([loadSubscription(), loadPayments()])
+          } catch (err) {
+            setPayError(messageOf(err))
+            await loadPayments()
+          } finally {
+            setPaying(false)
+          }
+        },
+        modal: {
+          ondismiss: async () => {
+            // the host closed the popup without paying
+            if (paidRef.current) return
+            try {
+              await api.post('/api/host/payments/fail', { razorpayOrderId: order.orderId })
+            } catch {
+              // nothing to do if marking fails
+            }
+            setPayError('Payment was cancelled. You have not been charged.')
+            setPaying(false)
+            loadPayments()
+          },
+        },
+      })
+
+      checkout.on('payment.failed', (resp) => {
+        setPayError(resp?.error?.description || 'Payment failed. Please try again.')
+      })
+
+      checkout.open()
+    } catch (err) {
+      setPayError(messageOf(err))
+      setPaying(false)
+    }
+  }
 
   const handleSaveSharing = async (e) => {
     e.preventDefault()
@@ -70,28 +195,7 @@ export default function HostBilling() {
     }
   }
 
-  const handleRequestUpgrade = async () => {
-    setRequestingUpgrade(true)
-    setUpgradeNotice('')
-    setUpgradeError('')
-    try {
-      await api.post('/api/host/subscription/upgrade', { planId: Number(selectedPlanId) })
-      setUpgradeNotice('Upgrade request submitted successfully! Awaiting Super Admin approval.')
-      setTimeout(() => setShowUpgradeModal(false), 2000)
-    } catch (err) {
-      setUpgradeError(getErrorMessage(err))
-    } finally {
-      setRequestingUpgrade(false)
-    }
-  }
-
-  const renewalDateStr = subscription?.endDate
-    ? new Date(subscription.endDate).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      })
-    : 'Ongoing'
+  const renewalDateStr = subscription?.endDate ? formatDate(subscription.endDate) : 'Ongoing'
 
   return (
     <div className="space-y-8">
@@ -103,7 +207,7 @@ export default function HostBilling() {
       <div className="grid gap-8 lg:grid-cols-2 items-start">
         {/* Left Column: Subscription & History */}
         <div className="space-y-6">
-          {/* Current Plan Card (Design 12) */}
+          {/* Current Plan Card */}
           <div className="card p-6 sm:p-8 space-y-5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted">Current plan</span>
@@ -137,29 +241,66 @@ export default function HostBilling() {
             <div className="pt-2">
               <button
                 type="button"
-                onClick={() => setShowUpgradeModal(true)}
+                onClick={openPayModal}
                 className="btn-primary"
                 style={{ width: 'auto', paddingInline: 24 }}
               >
-                Upgrade plan
+                Upgrade or renew plan
               </button>
             </div>
           </div>
 
-          {/* Billing History (Design 12) */}
+          {/* Billing History */}
           <div className="card overflow-hidden">
             <div className="border-b border-line px-6 py-4">
               <h2 className="text-base font-bold text-ink">Billing history</h2>
             </div>
-            <div className="p-8 text-center text-xs text-muted">
-              No previous billing invoices yet. Future renewals will be logged here.
-            </div>
+            {loadingPayments ? (
+              <p className="p-6 text-center text-xs text-muted">Loading...</p>
+            ) : payments.length === 0 ? (
+              <div className="p-8 text-center text-xs text-muted">
+                No payments yet. Your payments will be listed here.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-surface text-muted">
+                    <tr>
+                      <th className="px-4 py-2 font-semibold">Date</th>
+                      <th className="px-4 py-2 font-semibold">Plan</th>
+                      <th className="px-4 py-2 font-semibold">Amount</th>
+                      <th className="px-4 py-2 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {payments.map((p) => {
+                      const [label, cls] = STATUS_STYLE[p.status] || [p.status, 'bg-surface text-muted']
+                      return (
+                        <tr key={p.id}>
+                          <td className="px-4 py-3 text-muted">{formatDate(p.paidAt || p.createdAt)}</td>
+                          <td className="px-4 py-3 font-semibold text-ink">
+                            {p.planName}
+                            <span className="block font-normal text-muted">{p.months} month(s)</span>
+                          </td>
+                          <td className="px-4 py-3 text-ink">Rs {p.amount}</td>
+                          <td className="px-4 py-3">
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>
+                              {label}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right Column: Sharing & Audit Log */}
         <div className="space-y-6">
-          {/* Cross-bureau Sharing Card (Design 12) */}
+          {/* Cross-bureau Sharing Card */}
           <div className="card p-6 sm:p-8 space-y-5">
             <div>
               <h2 className="text-lg font-bold text-ink">Cross-bureau sharing</h2>
@@ -252,85 +393,115 @@ export default function HostBilling() {
         </div>
       </div>
 
-      {/* Upgrade Request Modal */}
-      {showUpgradeModal && (
+      {/* Pay Modal */}
+      {showPayModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="card w-full max-w-md p-6 space-y-4">
+          <div className="card w-full max-w-md space-y-4 p-6">
             <div className="flex items-center justify-between border-b border-line pb-3">
-              <h2 className="text-lg font-bold text-ink">Request Plan Upgrade</h2>
+              <h2 className="text-lg font-bold text-ink">Upgrade or renew plan</h2>
               <button
                 type="button"
-                onClick={() => setShowUpgradeModal(false)}
-                className="text-muted hover:text-ink text-sm font-bold"
+                onClick={closePayModal}
+                disabled={paying}
+                aria-label="Close"
+                className="text-sm font-bold text-muted hover:text-ink"
               >
                 ✕
               </button>
             </div>
 
-            {upgradeNotice && (
-              <p className="rounded bg-green-50 p-2.5 text-xs text-ok font-medium">{upgradeNotice}</p>
+            {paySuccess && (
+              <p className="rounded bg-green-50 p-2.5 text-xs font-medium text-ok">{paySuccess}</p>
             )}
-            {upgradeError && (
-              <p className="rounded bg-red-50 p-2.5 text-xs text-red-600">{upgradeError}</p>
+            {payError && (
+              <p className="rounded bg-red-50 p-2.5 text-xs text-red-600">{payError}</p>
             )}
 
-            <div className="space-y-3">
-              <p className="text-xs text-muted">
-                Select your target plan. The request will be reviewed and assigned by the platform administrator.
-              </p>
-
-              {FALLBACK_UPGRADE_PLANS.map((p) => (
-                <label
-                  key={p.id}
-                  className={`flex cursor-pointer items-center justify-between rounded-xl border p-3.5 transition ${
-                    selectedPlanId === p.id
-                      ? 'border-brand bg-brand-soft/30'
-                      : 'border-line hover:bg-surface'
-                  }`}
+            {paySuccess ? (
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPayModal(false)}
+                  className="btn-primary"
+                  style={{ width: 'auto', paddingInline: 20 }}
                 >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="radio"
-                      name="upgradePlan"
-                      value={p.id}
-                      checked={selectedPlanId === p.id}
-                      onChange={() => setSelectedPlanId(p.id)}
-                      className="text-brand"
-                    />
-                    <div>
-                      <p className="font-semibold text-ink">{p.name}</p>
-                      <p className="text-[11px] text-muted">
-                        {p.memberLimit ? `Up to ${p.memberLimit} members` : 'Unlimited members'}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="font-serif font-bold text-ink">Rs {p.pricePerMonth}/mo</span>
-                </label>
-              ))}
-            </div>
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {plansError && <p className="text-xs text-red-600">{plansError}</p>}
+                  {!plansError && paidPlans.length === 0 && (
+                    <p className="text-xs text-muted">No paid plans are available right now.</p>
+                  )}
 
-            <div className="flex justify-end gap-3 pt-3">
-              <button
-                type="button"
-                onClick={() => setShowUpgradeModal(false)}
-                className="btn-outline text-xs"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleRequestUpgrade}
-                disabled={requestingUpgrade}
-                className="btn-primary"
-                style={{ width: 'auto', paddingInline: 20 }}
-              >
-                {requestingUpgrade ? 'Submitting...' : 'Send Upgrade Request'}
-              </button>
-            </div>
+                  {paidPlans.map((p) => (
+                    <label
+                      key={p.id}
+                      className={`flex cursor-pointer items-center justify-between rounded-xl border p-3.5 transition ${
+                        chosenId === p.id ? 'border-brand bg-brand-soft/30' : 'border-line hover:bg-surface'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="payPlan"
+                          value={p.id}
+                          checked={chosenId === p.id}
+                          onChange={() => setSelectedPlanId(p.id)}
+                          className="text-brand"
+                        />
+                        <div>
+                          <p className="font-semibold text-ink">{p.name}</p>
+                          <p className="text-[11px] text-muted">
+                            {p.memberLimit ? `Up to ${p.memberLimit} members` : 'Unlimited members'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="font-serif font-bold text-ink">Rs {p.pricePerMonth}/mo</span>
+                    </label>
+                  ))}
+
+                  <div>
+                    <label className="label">Duration</label>
+                    <select
+                      className="input"
+                      value={months}
+                      onChange={(e) => setMonths(Number(e.target.value))}
+                    >
+                      {MONTH_OPTIONS.map((m) => (
+                        <option key={m} value={m}>
+                          {m} month{m > 1 ? 's' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-muted">
+                  Test mode: no real money is charged. Paying replaces your current plan and starts a new period from today.
+                </p>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={closePayModal} disabled={paying} className="btn-outline text-xs">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePay}
+                    disabled={paying || !chosenPlan}
+                    className="btn-primary"
+                    style={{ width: 'auto', paddingInline: 20 }}
+                  >
+                    {paying ? 'Processing...' : `Pay Rs ${total}`}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
     </div>
   )
 }
-

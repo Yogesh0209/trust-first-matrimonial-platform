@@ -3,10 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import api from '../api/axios'
 import { getErrorMessage } from '../utils/errors'
 import { timeAgo } from '../utils/time'
+import { resolveMediaUrl } from '../utils/media'
 
 function Avatar({ url, name }) {
   if (url) {
-    return <img src={url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+    return <img src={resolveMediaUrl(url)} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
   }
   const initial = name ? name.charAt(0).toUpperCase() : '?'
   return (
