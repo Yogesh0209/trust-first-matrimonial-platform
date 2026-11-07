@@ -18,6 +18,8 @@ public class InterestResponse {
     private String city;
     private String trustBand;
     private String note;
+    private Integer age;
+    private Integer trustLevel;
 
     public Long getId() {
         return id;
@@ -114,4 +116,12 @@ public class InterestResponse {
 	public void setNote(String note) {
 		this.note = note;
 	}
+	
+    public Integer getAge() { return age; }
+    
+    public void setAge(Integer age) { this.age = age; }
+
+    public Integer getTrustLevel() { return trustLevel; }
+    
+    public void setTrustLevel(Integer trustLevel) { this.trustLevel = trustLevel; }
 }

@@ -21,8 +21,6 @@ import Chat from './pages/Chat'
 import Plans from './pages/Plans'
 import Settings from './pages/Settings'
 import InactiveProfile from './pages/InactiveProfile'
-import PaymentSuccess from './pages/PaymentSuccess'
-import PaymentFailed from './pages/PaymentFailed'
 import HostDashboard from './pages/HostDashboard'
 import HostMembers from './pages/HostMembers'
 import HostReports from './pages/HostReports'
@@ -86,8 +84,6 @@ export default function App() {
         <Route path="/app/plans" element={<Plans />} />
         <Route path="/app/settings" element={<Settings />} />
         <Route path="/app/inactive" element={<InactiveProfile />} />
-        <Route path="/app/payment/success" element={<PaymentSuccess />} />
-        <Route path="/app/payment/failed" element={<PaymentFailed />} />
         <Route path="/app/verification" element={<Verification />} />
         <Route path="/app/profile" element={<Profile />} />
         <Route path="/app/photos" element={<Photos />} />

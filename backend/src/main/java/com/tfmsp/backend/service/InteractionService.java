@@ -381,6 +381,10 @@ public class InteractionService {
 
         if (targetProfile != null) {
             res.setCity(targetProfile.getCity());
+            res.setTrustLevel((int) targetProfile.getTrustLevel());
+            if (targetProfile.getDateOfBirth() != null) {
+                res.setAge(java.time.Period.between(targetProfile.getDateOfBirth(), java.time.LocalDate.now()).getYears());
+            }
             profilePhotoRepository.findByProfileIdAndIsPrimaryTrue(targetProfile.getId())
                     .ifPresent(p -> res.setPhotoUrl(p.getPhotoUrl()));
         }

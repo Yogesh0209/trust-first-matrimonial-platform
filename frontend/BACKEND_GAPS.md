@@ -14,9 +14,9 @@ This document tracks features or fields in the design screens that are not suppo
   * Design shows candidate-tier plans (Free / Pro / Premium with candidate features like "unlimited interests", "who viewed you", "profile highlight").
   * Backend reality: Subscription plans belong to marriage bureaus/hosts, not individual candidates (candidates cannot self-purchase subscriptions).
   * Implementation: Renders real bureau subscription plans (`Basic`, `Pro`, `Enterprise`) from `/api/plans` (with robust fallbacks) showcasing member limits, Level 3 Government ID verification, and cross-bureau matching. Action buttons are informational ("Contact your bureau").
-* **Payment Flow (`/app/payment/success` & `/app/payment/failed` - Designs 22 & 23)**:
-  * Backend reality: No payment gateway integration or candidate billing backend exists.
-  * Implementation: Built standalone demo payment confirmation and failure screens with realistic static mock data and clear "Demo payment screen" disclosures.
+* **Payments (Designs 22 & 23)**:
+  * Candidates do not pay; plans belong to bureaus. The demo candidate payment screens were removed.
+  * Bureaus pay for plans on `/host/billing` through Razorpay (test mode). The backend creates the order, verifies the signature and activates the plan. Payment history comes from `GET /api/host/payments`.
 
 ---
 
@@ -25,7 +25,7 @@ This document tracks features or fields in the design screens that are not suppo
   * The backend `GET /api/host/dashboard` returns aggregated summary numbers only.
   * Historical "members joined per month" and "trust level distribution" are calculated client-side by aggregating the member dataset from `GET /api/host/members`.
 * **Billing History & Cancel Subscription (`/host/billing` - Design 12)**:
-  * The backend provides current plan status and renewal dates via `GET /api/host/subscription`, but does not provide past invoice line items or a cancellation endpoint.
+  * The backend provides current plan status and renewal dates via `GET /api/host/subscription`, but provide past invoice line items or a cancellation endpoint.
   * An upgrade flow is integrated via `POST /api/host/subscription/upgrade` which submits an upgrade request for Super Admin approval.
 
 ---

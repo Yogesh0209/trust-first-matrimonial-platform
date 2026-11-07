@@ -5,6 +5,7 @@ import TrustBadge from '../components/TrustBadge'
 import InterestModal from '../components/InterestModal'
 import { activeLabel } from '../utils/time'
 import { getErrorMessage } from '../utils/errors'
+import { resolveMediaUrl } from '../utils/media'
 
 const PAGE_SIZE = 9
 const RELIGIONS = ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Jain', 'Buddhist', 'Other']
@@ -166,7 +167,7 @@ export default function Search() {
               <div key={r.profileId} className="card p-3">
                 <div className="relative mb-3 h-40 overflow-hidden rounded-xl bg-brand-soft">
                   {r.primaryPhotoUrl ? (
-                    <img src={r.primaryPhotoUrl} alt={r.fullName} className="h-full w-full object-cover" />
+                    <img src={resolveMediaUrl(r.primaryPhotoUrl)} alt={r.fullName} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full items-end justify-center">
                       <div className="h-24 w-24 rounded-t-full bg-[#dcc8cd]" />

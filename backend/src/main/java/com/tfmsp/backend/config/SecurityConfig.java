@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import java.util.Arrays;
 import java.util.List;
+import org.springframework.http.HttpMethod;
 
 import org.springframework.security.config.Customizer;
 import org.springframework.beans.factory.annotation.Value;
@@ -71,6 +72,7 @@ public class SecurityConfig {
 					    ).permitAll()
 					    .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
 					    .requestMatchers("/api/host/**").hasAnyRole("HOST", "SUPER_ADMIN")
+					    .requestMatchers(HttpMethod.GET, "/api/files/photos/**").permitAll()
 					    .anyRequest().authenticated()
 					)
 

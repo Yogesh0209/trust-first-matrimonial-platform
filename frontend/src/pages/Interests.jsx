@@ -4,10 +4,11 @@ import api from '../api/axios'
 import TrustBadge from '../components/TrustBadge'
 import { timeAgo } from '../utils/time'
 import { getErrorMessage } from '../utils/errors'
+import { resolveMediaUrl } from '../utils/media'
 
 function Avatar({ url }) {
   return url ? (
-    <img src={url} alt="" className="h-12 w-12 rounded-full object-cover" />
+    <img src={resolveMediaUrl(url)} alt="" className="h-12 w-12 rounded-full object-cover" />
   ) : (
     <div className="flex h-12 w-12 items-end justify-center overflow-hidden rounded-full bg-brand-soft">
       <div className="h-6 w-6 rounded-t-full bg-[#dcc8cd]" />
