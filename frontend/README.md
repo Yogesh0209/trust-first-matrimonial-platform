@@ -70,8 +70,6 @@ npm run preview
 | `/app/plans` | `END_USER` | Bureau subscription plans guide and bureau liaison |
 | `/app/settings` | `END_USER` | Change password, profile visibility (`VISIBLE`/`HIDDEN`), network sharing, and search status |
 | `/app/inactive` | `END_USER` | Inactive profile reactivate screen |
-| `/app/payment/success` | `END_USER` | Demo payment confirmation screen |
-| `/app/payment/failed` | `END_USER` | Demo payment failure screen |
 | `/app/profile` | `END_USER` | 3-step candidate profile editor (Basic, Education & Work, Family & About) |
 | `/app/photos` | `END_USER` | Candidate photo gallery management (add, primary, delete) |
 | `/app/verification` | `END_USER` | Selfie photo and Government ID submission portal |
