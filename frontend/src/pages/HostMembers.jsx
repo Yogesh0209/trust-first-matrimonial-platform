@@ -420,6 +420,7 @@ export default function HostMembers() {
                           key={v.id}
                           onClick={() => {
                             setSelectedVer(v)
+                            setRejectReason('')
                             setChecklist({ samePerson: false, clearPhoto: false, noFilters: false })
                             setDecisionError('')
                           }}

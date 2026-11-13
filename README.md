@@ -12,6 +12,7 @@ A trust-first matrimonial platform. Marriage bureaus (hosts) onboard and verify 
 ## Key features
 - 3 trust levels: Level 1 email + phone OTP, Level 2 selfie, Level 3 government ID (Pro plan and above)
 - Plan gating: Basic (50 members), Pro (500), Enterprise (unlimited); cross-bureau search needs Pro+
+- Bureau subscriptions & payments: Marriage bureaus can purchase or upgrade subscription plans using Razorpay in test mode; the backend creates orders, cryptographically verifies payment signatures before activating subscriptions, and tracks payment history via the host payments API
 - Interests with a note (max 200 chars) that expire after 14 days; chat only after an interest is accepted, with scam-flagged messages
 - Notifications, block / report / shortlist, "still looking?" inactivity check
 - Search with pagination, HTML stripped from profile text, audit logs for sensitive actions
@@ -39,11 +40,17 @@ Flyway creates all tables automatically on first start.
 
 ### 2. Backend (http://localhost:8080)
 Set environment variables, then start:
-```
+```bash
 DB_PASSWORD=your_password
 JWT_SECRET=a_long_random_string_at_least_32_chars
+RAZORPAY_KEY_ID=your_razorpay_test_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_test_key_secret
 ```
 (optional: `DB_URL`, `DB_USERNAME`)
+
+> **Razorpay test configuration:**
+> Bureau subscription purchases and upgrades operate in Razorpay test mode. Configure `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` in your environment from your [Razorpay Dashboard](https://dashboard.razorpay.com/) (Settings → API Keys in Test Mode). Never commit real credentials or secret keys to source control.
+
 ```
 cd backend
 ./mvnw spring-boot:run        # Windows: mvnw.cmd spring-boot:run
@@ -77,5 +84,5 @@ Change the default admin password before any real deployment.
 ## Notes
 - CORS allows `http://localhost:5173` and `http://localhost:3000`.
 - Verification photos are submitted as image links.
-- The payment screens are demos; there is no payment gateway.
+- Marriage bureau subscriptions are powered by Razorpay in test mode (`/host/billing`). The backend creates orders, verifies payment signatures before activating subscriptions, and provides payment history. End-user candidates do not purchase subscriptions; plans belong to marriage bureaus.
 - Design vs backend differences are listed in `frontend/BACKEND_GAPS.md`.
