@@ -21,6 +21,20 @@ body {
   font-family: var(--font-sans);
 }
 
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+.btn-primary:not(:disabled),
+.btn-outline:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+.btn-primary:disabled,
+.btn-outline:disabled {
+  cursor: not-allowed;
+}
+
 h1, h2, h3 { font-family: var(--font-serif); }
 
 /* Reusable styles used on every screen */

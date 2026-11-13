@@ -62,7 +62,11 @@ export default function HostMembers() {
   const [rejectReason, setRejectReason] = useState('')
   const [processingDecision, setProcessingDecision] = useState(false)
   const [decisionError, setDecisionError] = useState('')
-  const [failedImgs, setFailedImgs] = useState({})
+  const [checklist, setChecklist] = useState({
+    samePerson: false,
+    clearPhoto: false,
+    noFilters: false,
+  })
 
   // Load members
   const loadMembers = useCallback(async () => {
@@ -86,15 +90,19 @@ export default function HostMembers() {
       const res = await api.get('/api/host/verifications')
       const list = Array.isArray(res.data) ? res.data : []
       setVerifications(list)
-      if (list.length > 0 && !selectedVer) {
-        setSelectedVer(list[0])
-      }
+      setSelectedVer((prev) => {
+        if (!list || list.length === 0) return null
+        if (prev && list.some((v) => v.id === prev.id)) {
+          return list.find((v) => v.id === prev.id)
+        }
+        return list[0]
+      })
     } catch (err) {
       setVerificationsError(getErrorMessage(err))
     } finally {
       setLoadingVerifications(false)
     }
-  }, [selectedVer])
+  }, [])
 
   useEffect(() => {
     loadMembers()
@@ -153,6 +161,12 @@ export default function HostMembers() {
   // Handle Verification Decision (APPROVE / REJECT)
   const handleDecision = async (decision) => {
     if (!selectedVer) return
+    if (decision === 'APPROVED') {
+      if (!checklist.samePerson || !checklist.clearPhoto || !checklist.noFilters) {
+        setDecisionError('Please confirm all verification checklist items before approving.')
+        return
+      }
+    }
     if (decision === 'REJECTED' && !rejectReason.trim()) {
       setDecisionError('Please provide a reason when rejecting a verification.')
       return
@@ -166,6 +180,7 @@ export default function HostMembers() {
         reason: rejectReason.trim() || undefined,
       })
       setRejectReason('')
+      setChecklist({ samePerson: false, clearPhoto: false, noFilters: false })
       // Remove reviewed item from list
       const updated = verifications.filter((v) => v.id !== selectedVer.id)
       setVerifications(updated)
@@ -403,7 +418,11 @@ export default function HostMembers() {
                       return (
                         <tr
                           key={v.id}
-                          onClick={() => setSelectedVer(v)}
+                          onClick={() => {
+                            setSelectedVer(v)
+                            setChecklist({ samePerson: false, clearPhoto: false, noFilters: false })
+                            setDecisionError('')
+                          }}
                           className={`cursor-pointer transition ${isSelected ? 'bg-brand-soft/40 font-medium' : 'hover:bg-surface/50'
                             }`}
                         >
@@ -464,7 +483,7 @@ export default function HostMembers() {
                       />
                     </div>
                     <span className="mt-1.5 block text-xs font-medium text-muted">
-                      {selectedVer.type === 'GOV_ID' ? 'ID Front' : 'Live selfie'}
+                      {selectedVer.type === 'GOV_ID' ? 'ID Front' : 'Submitted selfie'}
                     </span>
                   </div>
 
@@ -488,15 +507,30 @@ export default function HostMembers() {
                 <div className="rounded-xl border border-line bg-surface p-4 text-xs space-y-2">
                   <p className="font-semibold text-ink">Check before approving:</p>
                   <label className="flex items-center gap-2 text-muted cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded text-brand" />
+                    <input
+                      type="checkbox"
+                      checked={checklist.samePerson}
+                      onChange={(e) => setChecklist((prev) => ({ ...prev, samePerson: e.target.checked }))}
+                      className="rounded text-brand"
+                    />
                     <span>Same person in all submitted photos</span>
                   </label>
                   <label className="flex items-center gap-2 text-muted cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded text-brand" />
+                    <input
+                      type="checkbox"
+                      checked={checklist.clearPhoto}
+                      onChange={(e) => setChecklist((prev) => ({ ...prev, clearPhoto: e.target.checked }))}
+                      className="rounded text-brand"
+                    />
                     <span>Photo is clear, legible, and not a screenshot</span>
                   </label>
                   <label className="flex items-center gap-2 text-muted cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded text-brand" />
+                    <input
+                      type="checkbox"
+                      checked={checklist.noFilters}
+                      onChange={(e) => setChecklist((prev) => ({ ...prev, noFilters: e.target.checked }))}
+                      className="rounded text-brand"
+                    />
                     <span>No heavy beauty filters or alterations</span>
                   </label>
                 </div>
