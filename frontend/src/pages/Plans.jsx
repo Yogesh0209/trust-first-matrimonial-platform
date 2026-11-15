@@ -2,180 +2,100 @@ import { useEffect, useState } from 'react'
 import api from '../api/axios'
 import { getErrorMessage } from '../utils/errors'
 
-const FALLBACK_PLANS = [
-  {
-    id: 1,
-    name: 'Basic',
-    pricePerMonth: 0,
-    memberLimit: 50,
-    govIdVerification: false,
-    crossBureauSearch: false,
-  },
-  {
-    id: 2,
-    name: 'Pro',
-    pricePerMonth: 499,
-    memberLimit: 500,
-    govIdVerification: true,
-    crossBureauSearch: true,
-  },
-  {
-    id: 3,
-    name: 'Enterprise',
-    pricePerMonth: 999,
-    memberLimit: null,
-    govIdVerification: true,
-    crossBureauSearch: true,
-  },
-]
-
 export default function Plans() {
-  const [plans, setPlans] = useState([])
+  const [bureau, setBureau] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [infoNotice, setInfoNotice] = useState('')
-  const [isFallback, setIsFallback] = useState(false)
 
   useEffect(() => {
     api
-      .get('/api/plans')
-      .then((res) => {
-        setPlans(Array.isArray(res.data) ? res.data : [])
-        setIsFallback(false)
-      })
-      .catch((err) => {
-        setPlans(FALLBACK_PLANS)
-        setIsFallback(true)
-        if (err.response?.status !== 404) {
-          setError(getErrorMessage(err))
-        }
-      })
+      .get('/api/me/bureau')
+      .then((res) => setBureau(res.data))
+      .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false))
   }, [])
 
-  const handleContactBureau = (planName) => {
-    setInfoNotice(
-      `To upgrade to the ${planName} plan or expand your membership features, please contact your registered marriage bureau administrator.`
+  if (loading) return <p className="text-sm text-muted">Loading...</p>
+
+  if (error) {
+    return (
+      <p className="mx-auto mt-6 max-w-md rounded bg-red-50 p-2 text-center text-xs text-red-600">
+        {error}
+      </p>
     )
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  if (loading) {
-    return <p className="text-sm text-muted">Loading plans...</p>
-  }
+  const features = [
+    { label: 'Level 2 selfie verification', on: true },
+    { label: 'Level 3 Government ID verification', on: bureau.govIdVerification },
+    { label: 'Cross-bureau network search', on: bureau.crossBureauSearch },
+  ]
 
   return (
-    <div className="mx-auto max-w-5xl py-4">
+    <div className="mx-auto max-w-3xl space-y-6 py-4">
       <div className="text-center">
-        <h1 className="text-3xl font-bold sm:text-4xl">Choose your plan</h1>
+        <h1 className="text-3xl font-bold sm:text-4xl">My Bureau</h1>
         <p className="mt-2 text-sm text-muted">
-          Selfie verification is included in every plan.
+          Your membership and features are provided by your marriage bureau.
         </p>
-        {isFallback && (
-          <p className="mt-1 text-xs text-muted">Showing default plans</p>
-        )}
       </div>
 
-      {infoNotice && (
-        <div className="mx-auto mt-6 max-w-2xl rounded-xl border border-line bg-surface p-4 text-center text-sm text-ink shadow-xs">
-          <p className="font-medium text-brand">{infoNotice}</p>
+      {/* Bureau + plan */}
+      <div className="card p-6 sm:p-8">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-ink">{bureau.name}</h2>
+            <p className="text-sm text-muted">
+              {bureau.city} • Code {bureau.bureauCode}
+            </p>
+          </div>
+          <span className="rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand">
+            {bureau.planName ? `${bureau.planName} plan` : 'No active plan'}
+          </span>
         </div>
-      )}
 
-      {error && (
-        <p className="mx-auto mt-6 max-w-md rounded bg-red-50 p-2 text-center text-xs text-red-600">
-          {error}
-        </p>
-      )}
-
-      <div className="mt-10 grid gap-6 md:grid-cols-3 items-stretch">
-        {plans.map((p) => {
-          const isPro = p.name?.toLowerCase() === 'pro'
-          return (
-            <div
-              key={p.id}
-              className={`relative flex flex-col justify-between rounded-2xl bg-white p-6 sm:p-8 transition ${
-                isPro
-                  ? 'border-2 border-brand shadow-md scale-100 md:-translate-y-2'
-                  : 'card'
-              }`}
-            >
-              {isPro && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                  <span className="rounded-full bg-brand px-3 py-1 text-xs font-semibold text-white uppercase tracking-wider">
-                    Recommended
-                  </span>
-                </div>
+        <h3 className="mt-6 text-sm font-semibold text-ink">What your bureau plan includes</h3>
+        <div className="mt-3 space-y-3 text-sm">
+          {features.map((f) => (
+            <div key={f.label} className="flex items-center gap-2.5">
+              {f.on ? (
+                <span className="font-bold text-ok">✓</span>
+              ) : (
+                <span className="text-muted/60">✕</span>
               )}
-
-              <div>
-                <h2 className="text-xl font-bold text-ink">{p.name}</h2>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="font-serif text-3xl font-bold text-ink">
-                    Rs {p.pricePerMonth}
-                  </span>
-                  <span className="text-xs text-muted">
-                    {p.pricePerMonth === 0 ? 'forever' : 'per month'}
-                  </span>
-                </div>
-
-                <div className="mt-8 space-y-3 text-sm">
-                  <div className="flex items-center gap-2.5 text-ink">
-                    <span className="text-ok font-bold">✓</span>
-                    <span>Level 2 selfie verification</span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 text-ink">
-                    <span className="text-ok font-bold">✓</span>
-                    <span>
-                      {p.memberLimit ? `Up to ${p.memberLimit} bureau members` : 'Unlimited members'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    {p.govIdVerification ? (
-                      <>
-                        <span className="text-ok font-bold">✓</span>
-                        <span className="text-ink">Level 3 Government ID verification</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-muted/60">✕</span>
-                        <span className="text-muted">Government ID verification</span>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    {p.crossBureauSearch ? (
-                      <>
-                        <span className="text-ok font-bold">✓</span>
-                        <span className="text-ink">Cross-bureau network search</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-muted/60">✕</span>
-                        <span className="text-muted">Cross-bureau network</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 pt-4">
-                <button
-                  type="button"
-                  onClick={() => handleContactBureau(p.name)}
-                  className={isPro ? 'btn-primary' : 'btn-outline w-full'}
-                >
-                  Contact your bureau
-                </button>
-              </div>
+              <span className={f.on ? 'text-ink' : 'text-muted'}>{f.label}</span>
             </div>
-          )
-        })}
+          ))}
+        </div>
+      </div>
+
+      {/* Contact */}
+      <div className="card p-6 sm:p-8">
+        <h3 className="text-base font-bold text-ink">Contact your bureau</h3>
+        {bureau.contactEmail || bureau.contactPhone ? (
+          <div className="mt-3 space-y-2 text-sm">
+            {bureau.contactName && <p className="text-ink">{bureau.contactName}</p>}
+            {bureau.contactEmail && (
+              <p>
+                <span className="text-muted">Email: </span>
+                <a href={`mailto:${bureau.contactEmail}`} className="font-medium text-brand hover:underline">
+                  {bureau.contactEmail}
+                </a>
+              </p>
+            )}
+            {bureau.contactPhone && (
+              <p>
+                <span className="text-muted">Phone: </span>
+                <a href={`tel:${bureau.contactPhone}`} className="font-medium text-brand hover:underline">
+                  {bureau.contactPhone}
+                </a>
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-muted">Contact details are not available yet.</p>
+        )}
       </div>
     </div>
   )
 }
-

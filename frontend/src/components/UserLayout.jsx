@@ -10,7 +10,7 @@ const links = [
   { to: '/app/search', label: 'Search' },
   { to: '/app/interests', label: 'Interests' },
   { to: '/app/chat', label: 'Messages' },
-  { to: '/app/plans', label: 'Plans' },
+  { to: '/app/plans', label: 'My Bureau' },
   { to: '/app/verification', label: 'Verification' },
 ]
 
