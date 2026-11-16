@@ -22,4 +22,6 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
             + "order by a.createdAt desc")
     List<AuditLog> findByBureau(@Param("bureauId") Long bureauId, Pageable pageable);
     List<AuditLog> findByActionOrderByCreatedAtDesc(String action, Pageable pageable);
+    
+    List<AuditLog> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

@@ -19,4 +19,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     List<Subscription> findByStatusAndEndDateBefore(SubscriptionStatus status, LocalDate date);
 
     List<Subscription> findByStatusAndEndDate(SubscriptionStatus status, LocalDate date);
+    
+    List<Subscription> findByStatus(SubscriptionStatus status);
 }

@@ -27,4 +27,6 @@ public interface VerificationRepository extends JpaRepository<Verification, Long
             Long id, List<Long> profileIds);
     
     List<Verification> findByFileUrlOrFileUrlBack(String fileUrl, String fileUrlBack);
+    
+    long countByStatusNot(ReviewStatus status);
 }

@@ -58,23 +58,21 @@ public class DashboardService {
         long activeMembers = bureauMembers.stream().filter(u -> u.getStatus() == UserStatus.ACTIVE).count();
 
         Set<Long> userIds = bureauMembers.stream().map(User::getId).collect(Collectors.toSet());
-        List<Profile> profiles = profileRepository.findAll().stream()
-                .filter(p -> userIds.contains(p.getUserId()))
-                .collect(Collectors.toList());
+        List<Profile> profiles = userIds.isEmpty()
+                ? List.of()
+                : profileRepository.findByUserIdIn(new ArrayList<>(userIds));
         Set<Long> profileIds = profiles.stream().map(Profile::getId).collect(Collectors.toSet());
+        List<Long> profileIdList = new ArrayList<>(profileIds);
 
-        // Pending verifications
-        long pendingVerifications = verificationRepository.findByStatusOrderBySubmittedAtAsc(ReviewStatus.PENDING)
-                .stream()
-                .filter(v -> profileIds.contains(v.getProfileId()))
-                .count();
+        // Pending verifications (only this bureau's members)
+        long pendingVerifications = profileIdList.isEmpty() ? 0
+                : verificationRepository
+                        .findByStatusAndProfileIdInOrderBySubmittedAtAsc(ReviewStatus.PENDING, profileIdList).size();
 
         // Accepted matches
-        long acceptedInterests = interestRepository.findAll().stream()
-                .filter(i -> i.getStatus() == InterestStatus.ACCEPTED)
-                .filter(i -> profileIds.contains(i.getSenderProfileId()) || profileIds.contains(i.getReceiverProfileId()))
-                .count();
-
+        long acceptedInterests = profileIdList.isEmpty() ? 0
+                : interestRepository.countByStatusForProfiles(InterestStatus.ACCEPTED, profileIdList);
+        
         // Open reports
         long openReports = reportRepository.findByStatusOrderByCreatedAtDesc(ReportStatus.OPEN)
                 .stream()
@@ -121,9 +119,7 @@ public class DashboardService {
 
         long totalUsers = userRepository.count();
 
-        long reviewedVerifications = verificationRepository.findAll().stream()
-                .filter(v -> v.getStatus() != ReviewStatus.PENDING)
-                .count();
+        long reviewedVerifications = verificationRepository.countByStatusNot(ReviewStatus.PENDING);
 
         long openReports = reportRepository.findByStatusOrderByCreatedAtDesc(ReportStatus.OPEN).size();
 
@@ -132,9 +128,7 @@ public class DashboardService {
                 .collect(Collectors.toMap(Plan::getId, Plan::getName));
 
         Map<String, Long> distribution = new HashMap<>();
-        List<Subscription> activeSubs = subscriptionRepository.findAll().stream()
-                .filter(s -> s.getStatus() == SubscriptionStatus.ACTIVE)
-                .collect(Collectors.toList());
+        List<Subscription> activeSubs = subscriptionRepository.findByStatus(SubscriptionStatus.ACTIVE);
 
         for (Subscription sub : activeSubs) {
             String pName = planNameMap.getOrDefault(sub.getPlanId(), "Other");
@@ -154,9 +148,8 @@ public class DashboardService {
     }
 
     public List<AuditLogResponse> getAuditLogs(int limit) {
-        return auditLogRepository.findAll().stream()
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .limit(limit)
+        int size = Math.max(1, Math.min(limit, 200));
+        return auditLogRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, size)).stream()
                 .map(this::toAuditResponse)
                 .collect(Collectors.toList());
     }
