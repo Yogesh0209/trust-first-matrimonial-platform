@@ -25,4 +25,6 @@ public interface VerificationRepository extends JpaRepository<Verification, Long
 
     Optional<Verification> findByIdAndProfileIdIn(
             Long id, List<Long> profileIds);
+    
+    List<Verification> findByFileUrlOrFileUrlBack(String fileUrl, String fileUrlBack);
 }
