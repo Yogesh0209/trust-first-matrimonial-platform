@@ -10,6 +10,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import com.tfmsp.backend.entity.OtpToken;
 import com.tfmsp.backend.entity.User;
@@ -21,6 +23,10 @@ import com.tfmsp.backend.repository.UserRepository;
 public class OtpService {
 
     private static final Logger log = LoggerFactory.getLogger(OtpService.class);
+    @Value("${app.otp.log-code:false}")
+    private boolean logCode;
+    @Autowired(required = false)
+    private EmailService emailService;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final OtpTokenRepository otpTokenRepository;
@@ -71,9 +77,18 @@ public class OtpService {
 
         otpTokenRepository.save(token);
 
+        // Email OTPs go out by real email; phone OTP stays mocked (no SMS gateway)
+        if (purpose != OtpPurpose.PHONE_VERIFY && emailService != null) {
+            emailService.sendOtp(user.getEmail(), purpose, rawOtp);
+        }
+        
         // In production, integrate email service (JavaMailSender) or SMS gateway
         // For development / phone OTP (FRD: phone OTP mocked):
-        log.info(">> [OTP GENERATED] User: {}, Purpose: {}, Code: {}", user.getEmail(), purpose, rawOtp);
+        if (logCode) {
+            log.info(">> [OTP GENERATED] User: {}, Purpose: {}, Code: {}", user.getEmail(), purpose, rawOtp);
+        } else {
+            log.info("OTP generated for user {} (purpose {})", user.getEmail(), purpose);
+        }
 
         return rawOtp;
     }
