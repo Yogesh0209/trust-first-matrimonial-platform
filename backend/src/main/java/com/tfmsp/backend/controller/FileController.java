@@ -43,13 +43,22 @@ public class FileController {
     }
 
     @PostMapping(value = "/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, String>> uploadPhoto(@RequestParam("file") MultipartFile file) {
-        return ResponseEntity.ok(Map.of("url", storage.savePhoto(file)));
+    public ResponseEntity<Map<String, String>> uploadPhoto(@RequestParam("file") MultipartFile file,
+            Authentication auth) {
+        return ResponseEntity.ok(Map.of("url", storage.savePhoto(file, bureauOf(auth))));
     }
 
     @PostMapping(value = "/document", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, String>> uploadDocument(@RequestParam("file") MultipartFile file) {
-        return ResponseEntity.ok(Map.of("url", storage.saveDocument(file)));
+    public ResponseEntity<Map<String, String>> uploadDocument(@RequestParam("file") MultipartFile file,
+            Authentication auth) {
+        return ResponseEntity.ok(Map.of("url", storage.saveDocument(file, bureauOf(auth))));
+    }
+    
+    // the uploader's bureau decides the cloud folder (tenant-aware storage)
+    private Long bureauOf(Authentication auth) {
+        return userRepository.findById(Long.valueOf(auth.getName()))
+                .map(User::getBureauId)
+                .orElse(null);
     }
 
     // Public: profile photos are shown in <img> tags, which cannot send a token.
