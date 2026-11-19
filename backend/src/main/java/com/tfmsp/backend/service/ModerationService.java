@@ -149,15 +149,18 @@ public class ModerationService {
 
     public List<ReportResponse> getHostReports(Long bureauId) {
         List<User> bureauUsers = userRepository.findByBureauIdAndRole(bureauId, com.tfmsp.backend.enums.Role.END_USER);
-        Set<Long> bureauUserIds = bureauUsers.stream().map(User::getId).collect(Collectors.toSet());
+        List<Long> bureauUserIds = bureauUsers.stream().map(User::getId).collect(Collectors.toList());
+        if (bureauUserIds.isEmpty()) {
+            return List.of();
+        }
 
-        List<Profile> bureauProfiles = profileRepository.findAll().stream()
-                .filter(p -> bureauUserIds.contains(p.getUserId()))
-                .collect(Collectors.toList());
-        Set<Long> bureauProfileIds = bureauProfiles.stream().map(Profile::getId).collect(Collectors.toSet());
+        List<Long> bureauProfileIds = profileRepository.findByUserIdIn(bureauUserIds).stream()
+                .map(Profile::getId).collect(Collectors.toList());
+        if (bureauProfileIds.isEmpty()) {
+            return List.of();
+        }
 
-        return reportRepository.findAllByOrderByCreatedAtDesc().stream()
-                .filter(r -> bureauProfileIds.contains(r.getReportedProfileId()))
+        return reportRepository.findByReportedProfileIdInOrderByCreatedAtDesc(bureauProfileIds).stream()
                 .map(this::enrichReport)
                 .collect(Collectors.toList());
     }

@@ -229,10 +229,8 @@ public class InteractionService {
         Profile callerProfile = profileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found"));
 
-        List<Interest> acceptedInterests = interestRepository.findAll().stream()
-                .filter(i -> i.getStatus() == InterestStatus.ACCEPTED)
-                .filter(i -> i.getSenderProfileId().equals(callerProfile.getId()) || i.getReceiverProfileId().equals(callerProfile.getId()))
-                .collect(Collectors.toList());
+        List<Interest> acceptedInterests =
+                interestRepository.findByStatusForProfile(InterestStatus.ACCEPTED, callerProfile.getId());
 
         List<ConversationResponse> conversations = new ArrayList<>();
 

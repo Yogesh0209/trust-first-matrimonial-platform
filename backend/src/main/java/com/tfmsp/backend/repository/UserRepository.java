@@ -1,10 +1,12 @@
 package com.tfmsp.backend.repository;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.tfmsp.backend.entity.User;
+import com.tfmsp.backend.enums.UserStatus;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
@@ -21,4 +23,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countByBureauIdAndRole(Long bureauId, com.tfmsp.backend.enums.Role role);
 
     java.util.List<User> findByBureauIdAndRole(Long bureauId, com.tfmsp.backend.enums.Role role);
+    
+    java.util.List<User> findByStatusAndLastActiveAtBefore(UserStatus status, LocalDateTime before);
 }
