@@ -35,4 +35,9 @@ public interface InterestRepository extends JpaRepository<Interest, Long> {
             + "and (i.senderProfileId in :ids or i.receiverProfileId in :ids)")
     long countByStatusForProfiles(@Param("status") InterestStatus status,
             @Param("ids") Collection<Long> ids);
+    
+    @Query("select i from Interest i where i.status = :status "
+            + "and (i.senderProfileId = :profileId or i.receiverProfileId = :profileId) order by i.id")
+    List<Interest> findByStatusForProfile(@Param("status") InterestStatus status,
+            @Param("profileId") Long profileId);
 }

@@ -1,5 +1,6 @@
 package com.tfmsp.backend.repository;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,4 +21,6 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     long countByReportedProfileIdAndStatus(Long reportedProfileId, ReportStatus status);
 
     boolean existsByReporterProfileIdAndReportedProfileId(Long reporterProfileId, Long reportedProfileId);
+    
+    List<Report> findByReportedProfileIdInOrderByCreatedAtDesc(Collection<Long> profileIds);
 }

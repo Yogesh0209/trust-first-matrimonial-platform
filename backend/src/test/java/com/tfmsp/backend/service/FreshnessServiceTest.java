@@ -77,7 +77,10 @@ class FreshnessServiceTest {
         activeUser.setStatus(UserStatus.ACTIVE);
         activeUser.setLastActiveAt(LocalDateTime.now().minusDays(10)); // fresh!
 
-        when(userRepository.findAll()).thenReturn(List.of(inactiveUser, activeUser));
+        // the database now returns only users inactive for more than 90 days
+        when(userRepository.findByStatusAndLastActiveAtBefore(
+                org.mockito.ArgumentMatchers.eq(UserStatus.ACTIVE), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of(inactiveUser));
 
         Profile inactiveProfile = new Profile();
         inactiveProfile.setId(101L);

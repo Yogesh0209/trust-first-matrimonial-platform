@@ -67,7 +67,7 @@ public class FreshnessService {
     @Transactional
     public int sweepInactiveProfiles() {
         LocalDateTime cutoff90Days = LocalDateTime.now().minusDays(90);
-        List<User> users = userRepository.findAll();
+        List<User> users = userRepository.findByStatusAndLastActiveAtBefore(UserStatus.ACTIVE, cutoff90Days);
         int hiddenCount = 0;
 
         for (User u : users) {
