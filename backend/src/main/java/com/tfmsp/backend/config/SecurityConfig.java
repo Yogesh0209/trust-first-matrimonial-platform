@@ -65,11 +65,14 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 					    .requestMatchers("/api/auth/change-password").authenticated()
 					    .requestMatchers(
-					        "/api/auth/**",
-					        "/api/tenants/register",
-					        "/actuator/health",
-					        "/error"
-					    ).permitAll()
+						        "/api/auth/**",
+						        "/api/tenants/register",
+						        "/actuator/health",
+						        "/error",
+						        "/swagger-ui/**",
+						        "/swagger-ui.html",
+						        "/v3/api-docs/**"
+						    ).permitAll()
 					    .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
 					    .requestMatchers("/api/host/**").hasAnyRole("HOST", "SUPER_ADMIN")
 					    .requestMatchers(HttpMethod.GET, "/api/files/photos/**").permitAll()
