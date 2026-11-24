@@ -37,7 +37,7 @@ export default function NotFound() {
       </main>
 
       <footer className="p-4 text-center text-xs text-muted border-t border-line bg-white">
-        © 2026 TrustMatch. Trust-First Matrimonial Platform.
+        © 2026 Milan. Trust-First Matrimonial Platform.
       </footer>
     </div>
   )

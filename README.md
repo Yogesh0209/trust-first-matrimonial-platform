@@ -1,4 +1,4 @@
-# TrustMatch (Milan)
+# Milan
 
 A trust-first matrimonial platform. Marriage bureaus (hosts) onboard and verify their own members, so every profile you see has a visible trust level.
 

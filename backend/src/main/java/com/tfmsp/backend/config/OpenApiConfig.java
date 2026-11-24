@@ -16,7 +16,7 @@ public class OpenApiConfig {
     public OpenAPI milanOpenApi() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Milan / TrustMatch API")
+                        .title("Milan API")
                         .version("1.0")
                         .description("Trust-first matrimonial platform. Log in via /api/auth/login, "
                                 + "copy the token, click Authorize and paste it."))

@@ -10,7 +10,7 @@ export default function Logo({ light = false }) {
         </svg>
       </span>
       <span className={`font-serif text-2xl font-bold ${light ? 'text-white' : 'text-brand'}`}>
-        TrustMatch
+        Milan
       </span>
     </div>
   )
