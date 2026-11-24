@@ -10,6 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.data.domain.PageRequest;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.tfmsp.backend.dto.AuditLogResponse;
 import com.tfmsp.backend.dto.StillLookingRequest;
@@ -28,6 +30,7 @@ public class FreshnessService {
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
     private final AuditLogRepository auditLogRepository;
+    private static final Logger log = LoggerFactory.getLogger(FreshnessService.class);
 
     public FreshnessService(
             UserRepository userRepository,
@@ -89,7 +92,7 @@ public class FreshnessService {
             }
         }
 
-        System.out.println("Freshness sweep finished. Profiles hidden: " + hiddenCount);
+        log.info("Freshness sweep finished. Profiles hidden: {}", hiddenCount);
         auditLogRepository.save(new AuditLog(
                 null,
                 "FRESHNESS_SWEEP",

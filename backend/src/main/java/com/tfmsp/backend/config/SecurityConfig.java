@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -88,6 +90,15 @@ public class SecurityConfig {
 		return http.build();
 	}
 
+    // Login is done by our own JWT code, so Spring's default in-memory user is not needed.
+    // Defining this bean stops Spring from printing a random "generated security password".
+    @Bean
+    public UserDetailsService noDefaultUser() {
+        return username -> {
+            throw new UsernameNotFoundException("Not used");
+        };
+    }
+    
 	private void writeError(HttpServletResponse res, int status, String code, String message) throws IOException {
 		res.setStatus(status);
 		res.setContentType("application/json");
