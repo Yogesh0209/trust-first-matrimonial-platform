@@ -130,7 +130,7 @@ export default function Landing() {
                 <span className="text-brand">you can trust.</span>
               </h1>
               <p className="max-w-xl text-base sm:text-lg text-muted leading-relaxed">
-                TrustMatch helps you discover profiles with visible verification levels and activity indicators, so you can make more informed connections.
+                Milan helps you discover profiles with visible verification levels and activity indicators, so you can make more informed connections.
               </p>
 
               <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -173,7 +173,7 @@ export default function Landing() {
                 <div className="relative h-64 overflow-hidden rounded-xl bg-brand-soft">
                   <img
                     src={heroCoupleImg}
-                    alt="Sample TrustMatch preview"
+                    alt="Sample Milan preview"
                     className="h-full w-full object-cover object-top"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
@@ -272,7 +272,7 @@ export default function Landing() {
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <h2 className="text-3xl font-bold text-ink">How we keep it real</h2>
             <p className="text-sm text-muted">
-              Every TrustMatch profile carries a visible trust level. You decide who to connect with.
+              Every Milan profile carries a visible trust level. You decide who to connect with.
             </p>
           </div>
 
@@ -492,7 +492,7 @@ export default function Landing() {
           <div className="lg:col-span-7 space-y-6 text-left">
             <h2 className="text-3xl font-bold sm:text-4xl text-white">For marriage bureaus</h2>
             <p className="text-sm text-brand-soft leading-relaxed max-w-xl">
-              Partner with TrustMatch to reach verified seekers and manage your listings digitally.
+              Partner with Milan to reach verified seekers and manage your listings digitally.
               Offer Level 3 Government ID verification as a trusted local bureau.
             </p>
             <ul className="space-y-2.5 text-xs text-white">
@@ -605,7 +605,7 @@ export default function Landing() {
         </div>
 
         <div className="mx-auto max-w-6xl mt-8 border-t border-line pt-6 text-center text-[11px]">
-          © 2026 TrustMatch. Trust-First Matrimonial Platform. All rights reserved.
+          © 2026 Milan. Trust-First Matrimonial Platform. All rights reserved.
         </div>
       </footer>
     </div>

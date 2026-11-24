@@ -1,8 +1,8 @@
-# TrustMatch demo script (about 5 minutes)
+# Milan demo script (about 5 minutes)
 
 Open two browser windows (one normal, one private) so you can switch roles quickly. Start with backend and frontend running.
 
-**Story to say first (15 sec):** "In most matrimonial sites anyone can create a fake profile. TrustMatch lets marriage bureaus verify their members, and shows a trust level on every profile."
+**Story to say first (15 sec):** "In most matrimonial sites anyone can create a fake profile. Milan lets marriage bureaus verify their members, and shows a trust level on every profile."
 
 ## 1. Bureau joins (45 sec) - public + Super Admin
 1. Open `/` (landing page), click **I am a Marriage Bureau** (`/host-register`), fill the form.

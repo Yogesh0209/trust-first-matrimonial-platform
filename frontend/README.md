@@ -1,6 +1,6 @@
-# TrustMatch — Trust-First Matrimonial Platform (Frontend)
+# Milan — Trust-First Matrimonial Platform (Frontend)
 
-TrustMatch is a modern, trust-first matrimonial SaaS platform connecting verified candidates through registered marriage bureaus. The application features tiered trust verification (Level 1 Phone/Email OTP, Level 2 Live Selfie matching, and Level 3 Government-issued Photo ID verification).
+Milan is a modern, trust-first matrimonial SaaS platform connecting verified candidates through registered marriage bureaus. The application features tiered trust verification (Level 1 Phone/Email OTP, Level 2 Live Selfie matching, and Level 3 Government-issued Photo ID verification).
 
 ---
 

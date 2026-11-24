@@ -126,7 +126,7 @@ export default function HostBilling() {
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
-        name: 'TrustMatch',
+        name: 'Milan',
         description: `${order.planName} plan, ${order.months} month(s)`,
         order_id: order.orderId,
         prefill: { email },

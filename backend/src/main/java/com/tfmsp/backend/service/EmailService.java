@@ -28,9 +28,9 @@ public class EmailService {
             return; // mail not configured, the console log is used instead
         }
         String subject = purpose == OtpPurpose.PASSWORD_RESET
-                ? "TrustMatch password reset code"
-                : "Your TrustMatch verification code";
-        String body = "Your TrustMatch code is: " + otp
+                ? "Milan password reset code"
+                : "Your Milan verification code";
+        String body = "Your Milan code is: " + otp
                 + "\n\nIt is valid for 5 minutes. If you did not request it, ignore this email.";
         try {
             SimpleMailMessage msg = new SimpleMailMessage();
