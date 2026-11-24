@@ -1,8 +1,13 @@
 -- V3: Add registration code to bureaus and account lockout columns to users
 
 ALTER TABLE `bureaus`
-ADD COLUMN `bureau_code` VARCHAR(20) UNIQUE AFTER `name`;
+ADD COLUMN `bureau_code` VARCHAR(20) AFTER `name`;
+
+ALTER TABLE `bureaus`
+ADD UNIQUE KEY `uk_bureaus_bureau_code` (`bureau_code`);
 
 ALTER TABLE `users`
-ADD COLUMN `failed_login_attempts` INT NOT NULL DEFAULT 0 AFTER `is_blocked`,
+ADD COLUMN `failed_login_attempts` INT NOT NULL DEFAULT 0 AFTER `is_blocked`;
+
+ALTER TABLE `users`
 ADD COLUMN `locked_until` DATETIME NULL AFTER `failed_login_attempts`;
