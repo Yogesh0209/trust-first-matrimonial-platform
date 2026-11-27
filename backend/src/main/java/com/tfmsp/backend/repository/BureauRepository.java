@@ -17,7 +17,7 @@ public interface BureauRepository extends JpaRepository<Bureau, Long> {
 
     boolean existsByBureauCode(String bureauCode);
     
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    
     @Query("select b from Bureau b where b.bureauCode = :code")
     Optional<Bureau> findByBureauCodeForUpdate(@Param("code") String code);
 
